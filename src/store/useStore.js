@@ -8,7 +8,7 @@ export const useStore = create(
     persist(
         (set, get) => ({
             apiUrl: import.meta.env.VITE_API_URL || 'https://api.voxeflow.com',
-            apiKey: import.meta.env.VITE_API_KEY || 'E91A39E9B41C-490C-BF79-0AF9FB818376',
+            apiKey: import.meta.env.VITE_API_KEY || 'Beatriz@CB650',
             instanceName: import.meta.env.VITE_INSTANCE_NAME || 'VoxeFlow',
             briefing: '', // V7: Start empty to trigger interactive briefing
             ragSources: [
