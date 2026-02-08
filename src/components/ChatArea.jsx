@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Zap, Bot, Send, Check, BarChart3, Target, Wand2, Paperclip, Mic, Image, FileText, Camera, Tag, Archive } from 'lucide-react';
+import { Zap, Bot, Send, Check, BarChart3, Target, Wand2, Paperclip, Mic, Image, FileText, Camera, Tag, Archive, ChevronLeft } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
 import { formatJid } from '../utils/formatter';
