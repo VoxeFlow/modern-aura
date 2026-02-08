@@ -18,34 +18,34 @@ const BriefingModal = ({ isOpen, onClose }) => {
 
     const steps = [
         {
-            title: "O Negócio",
-            q: "Qual o nome da sua empresa e o que exatamente vocês fazem de melhor?",
+            title: "Identidade & Segmento",
+            q: "Qual o nome da empresa e o segmento de atuação?",
             key: "business",
-            placeholder: "Ex: Clínica Inova, especialistas em Implantes e Reabilitação Oral..."
+            placeholder: "Ex: Clínica Sorriso (Odontologia), Advocacia Silva (Direito Civil), Loja Tech (E-commerce de Gadgets)..."
         },
         {
-            title: "Diferenciais",
-            q: "Por que um cliente deve escolher você e não a concorrência? O que te torna único?",
+            title: "Proposta de Valor (WOW)",
+            q: "Quais são os 3 principais diferenciais que fazem o cliente dizer 'UAU'?",
             key: "competence",
-            placeholder: "Ex: Não somos franquia, atendimento com especialistas do início ao fim, tecnologia guiada..."
+            placeholder: "Ex: Atendimento em 15min, tecnologia exclusiva X, garantia de 5 anos, orçamento sem compromisso..."
         },
         {
-            title: "Público & Tom",
-            q: "Quem é seu cliente ideal e como o Aura deve falar com ele? (Profissional, amigável, autoritário?)",
+            title: "Iscas de Conversão",
+            q: "Quais perguntas curtas o Aura deve fazer para sondar o interesse do cliente?",
             key: "audience",
-            placeholder: "Ex: Pessoas acima de 40 anos buscando qualidade. Tom deve ser profissional e autoritário tecnicamente."
+            placeholder: "Ex: 'Você já teve alguma experiência com isso?', 'O que mais te incomoda hoje?', 'Já tentou resolver de outra forma?'"
         },
         {
-            title: "Formas de Pagamento",
-            q: "Quais as facilidades de pagamento que podemos usar como 'isca' ou fechamento?",
+            title: "Política Comercial",
+            q: "Como lidamos com Preços, Descontos e Pagamentos?",
             key: "payments",
-            placeholder: "Ex: Parcelamento em até 24x sem juros, entrada de 1k + boletos, aceitamos todos os cartões."
+            placeholder: "Ex: Não damos preço fixo por Whats, mas temos parcelamento em 24x e desconto de 10% no Pix."
         },
         {
-            title: "Regras de Ouro",
-            q: "Quais as regras inegociáveis? (Ex: Nunca dar preço por WhatsApp, sempre focar na avaliação)",
+            title: "Regras de Fechamento",
+            q: "Quais as regras inegociáveis para converter o lead?",
             key: "rules",
-            placeholder: "Ex: Nunca passar valores exatos. Sempre redirecionar para avaliação clínica explicando que cada caso é único."
+            placeholder: "Ex: Nunca deixar o cliente sem pergunta no final. Sempre convidar para uma visita presencial ou call."
         }
     ];
 
@@ -55,13 +55,13 @@ const BriefingModal = ({ isOpen, onClose }) => {
     };
 
     const handleFinish = () => {
-        // Construct the final briefing string based on the high-conversion patterns
+        // Construct a highly structured Knowledge Base object for the AI
         const finalBriefing = `
-Nome/Área: ${answers.business}
-Diferenciais: ${answers.competence}
-Público/Tom: ${answers.audience}
-Pagamentos: ${answers.payments}
-REGRAS DE OURO: ${answers.rules}
+[SEGMENTO]: ${answers.business}
+[DIFERENCIAIS]: ${answers.competence}
+[ISCAS_CONVERSAO]: ${answers.audience}
+[FINANCEIRO]: ${answers.payments}
+[DIRETRIZES]: ${answers.rules}
         `.trim();
 
         setConfig({ briefing: finalBriefing });
