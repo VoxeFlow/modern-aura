@@ -55,7 +55,12 @@ const App = () => {
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
-  // Check if briefing is empty and trigger onboarding (only when authenticated)
+  // Handle external modal triggers (from ConfigModal)
+  useEffect(() => {
+    const handleOpenBriefing = () => setIsBriefingOpen(true);
+    window.addEventListener('open-briefing', handleOpenBriefing);
+    return () => window.removeEventListener('open-briefing', handleOpenBriefing);
+  }, []);
 
 
   // Check WhatsApp connection status (only when authenticated)

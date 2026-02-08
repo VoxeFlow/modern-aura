@@ -30,32 +30,37 @@ const ConfigModal = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="input-group" style={{ marginTop: '15px' }}>
-                        <label>Briefing do Negócio (Knowledge Base)</label>
-                        <div style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: '12px',
-                            padding: '20px',
-                            textAlign: 'center'
-                        }}>
-                            <Brain size={32} color="var(--accent-primary)" style={{ marginBottom: '10px', opacity: 0.8 }} />
-                            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '15px' }}>
-                                O conhecimento da sua IA agora é gerido de forma estratégica e estruturada.
-                            </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ margin: 0 }}>Briefing do Negócio (Knowledge Base)</label>
                             <button
                                 type="button"
                                 className="btn-primary"
                                 onClick={() => {
-                                    onClose(); // Close config
-                                    // The Sidebar/App handles opening BriefingModal via store or state
-                                    // For now, we manually trigger the store if needed or just tell the user
+                                    onClose();
                                     window.dispatchEvent(new CustomEvent('open-briefing'));
                                 }}
-                                style={{ padding: '8px 20px', fontSize: '12px', borderRadius: '8px' }}
+                                style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '6px', background: 'rgba(197, 160, 89, 0.2)', color: 'var(--accent-primary)', border: '1px solid rgba(197, 160, 89, 0.3)' }}
                             >
-                                Gerir Inteligência do Cérebro
+                                <Brain size={12} style={{ marginRight: '5px' }} /> Abrir Dashboard Estratégico
                             </button>
                         </div>
+                        <textarea
+                            name="briefing"
+                            defaultValue={briefing}
+                            rows={4}
+                            placeholder="A Aura usa estes dados para vender. Recomendamos usar o Dashboard Estratégico acima para melhores resultados."
+                            style={{
+                                background: 'rgba(0,0,0,0.2)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'white',
+                                padding: '10px',
+                                borderRadius: '8px',
+                                resize: 'vertical',
+                                fontSize: '12px',
+                                lineHeight: '1.4',
+                                opacity: 0.8
+                            }}
+                        />
                     </div>
 
                     <div className="input-group" style={{ marginTop: '15px' }}>
