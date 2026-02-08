@@ -6,8 +6,9 @@ import ConfigModal from './components/ConfigModal';
 import ConnectModal from './components/ConnectModal';
 import BriefingModal from './components/BriefingModal';
 import HistoryView from './components/HistoryView';
-import CRMView from './components/CRMView'; // Added CRMView import
-import LoginScreen from './components/LoginScreen'; // AUTH: Login screen
+import CRMView from './components/CRMView';
+import LoginScreen from './components/LoginScreen';
+import LandingPage from './pages/LandingPage'; // SALES LANDING PAGE
 import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 
@@ -19,6 +20,8 @@ const App = () => {
 
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // LANDING: Track if user clicked "Já sou Cliente" to show login
+  const [showLogin, setShowLogin] = useState(false);
 
   // AUTH: Check localStorage for authentication token
   useEffect(() => {
@@ -57,13 +60,22 @@ const App = () => {
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     setIsAuthenticated(false);
+    setShowLogin(false); // Return to landing page
   };
 
-  // AUTH: If not authenticated, show login screen (AFTER all hooks)
-  if (!isAuthenticated) {
+  // LANDING: If not authenticated and user hasn't clicked "Já sou Cliente", show landing page
+  if (!isAuthenticated && !showLogin) {
+    console.log('AURA: Rendering Landing Page');
+    return <LandingPage onGetStarted={() => setShowLogin(true)} />;
+  }
+
+  // AUTH: If not authenticated but user wants to login, show login screen
+  if (!isAuthenticated && showLogin) {
+    console.log('AURA: Rendering Login Screen');
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }
 
+  // MAIN APP: User is authenticated
   return (
     <div className="app-container">
       <Sidebar

@@ -13,6 +13,11 @@ export default function LoginScreen({ onLogin }) {
 
         // Get password from environment variable
         const correctPassword = import.meta.env.VITE_AUTH_PASSWORD || 'VoxeFlow2024!';
+        console.log('AURA Login Debug:', {
+            envSet: !!import.meta.env.VITE_AUTH_PASSWORD,
+            expectedLength: correctPassword.length,
+            match: password === correctPassword
+        });
 
         setTimeout(() => {
             if (password === correctPassword) {
