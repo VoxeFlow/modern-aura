@@ -1,9 +1,14 @@
+/* ========================================
+   Login Screen - Gray Scale + Gold Theme
+   ======================================== */
+
 .login-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* CHANGED: Gray gradient instead of purple */
+    background: linear-gradient(135deg, #F5F5F5 0%, #E0E0E0 100%);
     padding: 20px;
 }
 
@@ -11,7 +16,8 @@
     background: white;
     border-radius: 20px;
     padding: 48px 40px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    /* CHANGED: Subtle shadow with gray */
+    box-shadow: 0 20px 60px rgba(44, 44, 44, 0.15);
     max-width: 420px;
     width: 100%;
     animation: slideIn 0.3s ease-out;
@@ -40,7 +46,8 @@
     justify-content: center;
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* CHANGED: Gold gradient for logo */
+    background: linear-gradient(135deg, #D4AF37 0%, #C19B2E 100%);
     border-radius: 20px;
     margin-bottom: 20px;
     color: white;
@@ -50,14 +57,12 @@
     font-size: 32px;
     font-weight: 700;
     margin: 0 0 8px 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    /* CHANGED: Dark gray text instead of gradient */
+    color: #2C2C2C;
 }
 
 .subtitle {
-    color: #6b7280;
+    color: #9E9E9E;
     font-size: 14px;
     margin: 0;
 }
@@ -74,25 +79,27 @@
     display: block;
     font-size: 14px;
     font-weight: 600;
-    color: #374151;
+    color: #2C2C2C;
     margin-bottom: 8px;
 }
 
 .form-group input {
     width: 100%;
     padding: 12px 16px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid #E0E0E0;
     border-radius: 12px;
     font-size: 16px;
     transition: all 0.2s;
-    background: #f9fafb;
+    background: #F9F9F9;
 }
 
 .form-group input:focus {
     outline: none;
-    border-color: #667eea;
+    /* CHANGED: Gold border on focus */
+    border-color: #D4AF37;
     background: white;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    /* CHANGED: Gold shadow */
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .form-group input:disabled {
@@ -133,7 +140,8 @@
 .login-button {
     width: 100%;
     padding: 14px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* CHANGED: Gold gradient button */
+    background: linear-gradient(135deg, #D4AF37 0%, #C19B2E 100%);
     color: white;
     border: none;
     border-radius: 12px;
@@ -149,7 +157,8 @@
 
 .login-button:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    /* CHANGED: Gold shadow on hover */
+    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
 }
 
 .login-button:active:not(:disabled) {
@@ -179,36 +188,13 @@
 .login-footer {
     text-align: center;
     padding-top: 24px;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #E0E0E0;
 }
 
 .login-footer p {
-    color: #6b7280;
+    color: #9E9E9E;
     font-size: 14px;
     margin: 0;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .login-card {
-        background: #1f2937;
-    }
-
-    .form-group label {
-        color: #e5e7eb;
-    }
-
-    .form-group input {
-        background: #374151;
-        border-color: #4b5563;
-        color: white;
-    }
-
-    .form-group input:focus {
-        background: #4b5563;
-    }
-
-    .login-footer {
-        border-top-color: #4b5563;
-    }
-}
+/* REMOVED DARK MODE - Always use light gray palette */
