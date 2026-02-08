@@ -39,6 +39,16 @@ const ChatArea = ({ isArchived = false }) => {
         }
     };
 
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, activeChat?.id]);
+
     useEffect(() => {
         const jid = activeChat?.id;
         activeJidRef.current = jid;
@@ -544,6 +554,7 @@ const ChatArea = ({ isArchived = false }) => {
                             );
                         })}
                         {loading && messages.length === 0 && <p className="loading-txt">Carregando histórico...</p>}
+                        <div ref={messagesEndRef} />
                     </div>
 
                     <form className="message-input-area" onSubmit={handleSend} style={{ position: 'relative' }}>
