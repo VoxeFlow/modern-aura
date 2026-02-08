@@ -191,19 +191,26 @@ const ConnectModal = ({ isOpen, onClose }) => {
     };
 
     const handleLogout = async () => {
-        if (!window.confirm("Deseja realmente desconectar o WhatsApp?")) return;
+        if (!window.confirm("Deseja realmente desconectar o WhatsApp? Isso apagará todos os dados locais.")) return;
         setLoading(true);
         try {
+            // 1. Try to delete the instance on backend
             await WhatsAppService.logoutInstance();
         } catch (e) {
-            console.error("Logout failed:", e);
+            console.error("Logout backend failed:", e);
         }
 
-        // Critical: Clear local state
+        // 2. Kill local session data immediately
         useStore.getState().logout();
 
-        await checkStatus();
-        setLoading(false);
+        // 3. NUCLEAR OPTION: Clear all storage and FORCE RELOAD
+        // This guarantees no React state or Zustand persistence survives
+        localStorage.clear();
+        sessionStorage.clear();
+
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
     };
 
     if (!isOpen) return null;

@@ -92,7 +92,7 @@ export default function LoginScreen({ onLogin }) {
 
                 <div className="login-footer">
                     <p>Protected by VoxeFlow Security</p>
-                    <p style={{ fontSize: '10px', opacity: 0.5, marginTop: '5px' }}>v1.0.5</p>
+                    <p style={{ fontSize: '10px', opacity: 0.5, marginTop: '5px' }}>v1.0.6</p>
                 </div>
             </div>
         </div>
