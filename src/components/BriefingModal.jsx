@@ -13,10 +13,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
 
     // Initialize view based on data presence
     useEffect(() => {
-        if (isOpen && (knowledgeBase?.length === 0 || !knowledgeBase)) {
-            setView('interview');
-        } else {
-            setView('dashboard');
+        if (isOpen) {
+            if (!knowledgeBase || knowledgeBase.length === 0) {
+                setView('interview');
+            } else {
+                setView('dashboard');
+            }
         }
     }, [isOpen, knowledgeBase]);
 
@@ -39,7 +41,8 @@ const BriefingModal = ({ isOpen, onClose }) => {
                 analysis
             };
 
-            const newKB = [...(knowledgeBase || []), newItem];
+            const currentKB = knowledgeBase || [];
+            const newKB = [...currentKB, newItem];
             setKnowledgeBase(newKB);
             setCurrentAnswer("");
 
@@ -61,12 +64,14 @@ const BriefingModal = ({ isOpen, onClose }) => {
     };
 
     const syncBriefingText = (kb) => {
-        const text = kb.map(h => `[P]: ${h.q}\n[R]: ${h.a}`).join('\n\n');
+        const currentKB = kb || [];
+        const text = currentKB.map(h => `[P]: ${h.q}\n[R]: ${h.a}`).join('\n\n');
         setConfig({ briefing: text });
     };
 
     const handleUpdatePoint = async (id) => {
-        const point = knowledgeBase.find(k => k.id === id);
+        const currentKB = knowledgeBase || [];
+        const point = currentKB.find(k => k.id === id);
         if (!point) return;
 
         setStatus('thinking');
@@ -74,7 +79,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
             const { default: OpenAIService } = await import('../services/openai');
             const analysis = await OpenAIService.analyzeKnowledgePoint(point.q, tempAnswer);
 
-            const newKB = knowledgeBase.map(item =>
+            const newKB = currentKB.map(item =>
                 item.id === id ? { ...item, a: tempAnswer, analysis } : item
             );
 
@@ -86,6 +91,8 @@ const BriefingModal = ({ isOpen, onClose }) => {
             setStatus('idle');
         }
     };
+
+    const safeKB = knowledgeBase || [];
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', zIndex: 1000 }}>
@@ -159,7 +166,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px', gap: '15px' }}>
-                                {knowledgeBase?.length > 0 && (
+                                {safeKB.length > 0 && (
                                     <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ padding: '12px 25px' }}>Ir para o Dashboard</button>
                                 )}
                                 <button
@@ -175,7 +182,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                     ) : (
                         <div className="knowledge-dashboard">
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
-                                {knowledgeBase?.map((point) => (
+                                {safeKB.map((point) => (
                                     <div key={point.id} className="knowledge-card glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '15px', position: 'relative', transition: 'transform 0.2s' }}>
                                         <div style={{ marginBottom: '15px' }}>
                                             <label style={{ fontSize: '10px', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Questão Estratégica</label>
