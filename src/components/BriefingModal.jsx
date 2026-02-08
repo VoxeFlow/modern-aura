@@ -143,17 +143,17 @@ const BriefingModal = ({ isOpen, onClose }) => {
                         <div className="interview-flow" style={{ maxWidth: '650px', margin: '20px auto' }}>
                             <div className="question-area" style={{
                                 background: '#FFFFFF',
-                                padding: '45px',
-                                borderRadius: '28px',
+                                padding: '30px', /* REDUCED: Was 45px */
+                                borderRadius: '24px',
                                 border: '1px solid rgba(197, 160, 89, 0.2)',
-                                boxShadow: '0 20px 40px rgba(197, 160, 89, 0.05)'
+                                boxShadow: '0 10px 30px rgba(197, 160, 89, 0.05)'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <Sparkles size={16} color="var(--accent-primary)" />
-                                    <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px' }}>Aura Mentor</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                                    <Sparkles size={14} color="var(--accent-primary)" />
+                                    <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Aura Mentor</span>
                                 </div>
 
-                                <h3 style={{ margin: '0 0 35px 0', fontSize: '26px', color: '#1d1d1f', lineHeight: '1.4', fontWeight: 'bold' }}>
+                                <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#1d1d1f', lineHeight: '1.4', fontWeight: 'bold' }}>
                                     {status === 'thinking' ? "Gerando Insight..." : currentQuestion}
                                 </h3>
 
