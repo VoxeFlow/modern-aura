@@ -17,6 +17,7 @@ const App = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -115,9 +116,11 @@ const App = () => {
         onOpenConnect={() => setIsConnectOpen(true)}
         onOpenBriefing={() => setIsBriefingOpen(true)}
         onLogout={handleLogout}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
-      {currentView === 'history' ? <HistoryView /> : currentView === 'crm' ? null : <ChatList />}
-      <main className="main-content">
+      {currentView === 'history' ? <HistoryView /> : currentView === 'crm' ? null : <ChatList onOpenMenu={() => setIsMobileMenuOpen(true)} />}
+      <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
         {currentView === 'dashboard' ? <ChatArea /> :
           currentView === 'crm' ? <CRMView /> :
             currentView === 'history' ? <ChatArea isArchived={true} /> : (

@@ -440,6 +440,13 @@ const ChatArea = ({ isArchived = false }) => {
             <header className="chat-header glass-panel">
                 <div className="active-info">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                            className="mobile-back-btn"
+                            onClick={() => setActiveChat(null)}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'none', marginRight: '5px' }}
+                        >
+                            <ChevronLeft size={24} color="#1d1d1f" />
+                        </button>
                         <h3 style={{ margin: 0 }}>{activeChat.name && activeChat.name !== formatJid(activeChat.id) ? activeChat.name : formatJid(activeChat.id)}</h3>
                         <span className="badge-v3">v7 Sales Engine</span>
                         {isArchived && (

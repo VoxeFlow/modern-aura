@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Menu } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
 import { formatJid } from '../utils/formatter';
 
-const ChatList = () => {
+const ChatList = ({ onOpenMenu }) => {
     const { chats, setChats, activeChat, setActiveChat, isConnected } = useStore();
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +45,12 @@ const ChatList = () => {
     return (
         <div className="chat-list-container glass-panel">
             <div className="list-header">
-                <h2>Mensagens</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <button className="mobile-menu-btn" onClick={onOpenMenu} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'none' }}>
+                        <Menu size={24} color="#1d1d1f" />
+                    </button>
+                    <h2>Mensagens</h2>
+                </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     {!isConnected && <span style={{ fontSize: '10px', color: '#ff4444' }}>Offline</span>}
                     <RefreshCw
