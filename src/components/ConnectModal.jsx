@@ -121,6 +121,42 @@ const ConnectModal = ({ isOpen, onClose }) => {
         };
     }, [isOpen, instanceName, isConnected, apiUrl, loading, connecting]); // FIX: Added loading and connecting to dependencies
 
+    // START POLLING for QR Code if WebSocket fails
+    useEffect(() => {
+        if (!isOpen || isConnected || !instanceName) return;
+
+        let pollInterval;
+        const pollQrCode = async () => {
+            if (qrCode) return; // Don't poll if we already have one
+            try {
+                // Fetch the connection status/QR code directly
+                const data = await WhatsAppService.connectInstance();
+                if (data && (data.qrcode || data.base64)) {
+                    console.log('🔄 Polling: QR Code received via HTTP');
+                    const raw = data.qrcode?.base64 || data.base64 || data.qrcode;
+                    if (raw && typeof raw === 'string') {
+                        const base64Clean = raw.replace(/^data:image\/[a-z]+;base64,/, '');
+                        setQrCode(`data:image/png;base64,${base64Clean}`);
+                    }
+                }
+            } catch (e) {
+                console.warn('Polling error:', e);
+            }
+        };
+
+        // Start polling after 2 seconds to give WebSocket a chance first
+        const timer = setTimeout(() => {
+            console.log('⚠️ WebSocket slow/failed, starting HTTP polling for QR Code...');
+            pollQrCode(); // Initial poll
+            pollInterval = setInterval(pollQrCode, 3000);
+        }, 2000);
+
+        return () => {
+            clearTimeout(timer);
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [isOpen, isConnected, instanceName, qrCode]);
+
     const handleConnect = async () => {
         setLoading(true);
         setQrCode(null);
@@ -128,7 +164,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         setConnecting(prev => prev + 1);
         try {
             // Restart instance to trigger new QR code generation
-            // The QR code will be received via WebSocket qrcode.updated event
+            // The QR code will be received via WebSocket qrcode.updated event OR Polling
             const response = await fetch(`${apiUrl}/instance/restart/${instanceName}`, {
                 method: 'POST',
                 headers: {
@@ -136,7 +172,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
                     'apikey': apiKey
                 }
             });
-            console.log('Instance restart triggered, waiting for QR code via WebSocket...');
+            console.log('Instance restart triggered, waiting for QR code...');
         } catch (e) {
             console.error("Connect Error:", e);
         }
