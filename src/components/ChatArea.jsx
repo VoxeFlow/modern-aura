@@ -8,6 +8,10 @@ import ImageViewer from './ImageViewer';
 
 const ChatArea = ({ isArchived = false }) => {
     const { activeChat, messages, setMessages, clearMessages, briefing, setActiveChat } = useStore();
+
+    // GUARD CLAUSE: If no chat is active, don't render anything (or render placeholder)
+    if (!activeChat && !isArchived) return null;
+
     const [loading, setLoading] = useState(false);
     const [suggestion, setSuggestion] = useState('');
     const [analysisData, setAnalysisData] = useState({ level: '', intent: '', strategy: '' });

@@ -13,7 +13,7 @@ import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 
 const App = () => {
-  const { isConnected, setIsConnected, currentView, briefing, setChats } = useStore();
+  const { isConnected, setIsConnected, currentView, briefing, setChats, activeChat } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
