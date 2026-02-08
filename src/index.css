@@ -920,6 +920,7 @@ input:focus {
   color: #4a4a4c;
   font-size: 13px;
 }
+
 /* =========================================
    MOBILE RESPONSIVENESS (BREAKPOINT: 768px)
    ========================================= */
@@ -927,24 +928,33 @@ input:focus {
   .app-container {
     position: relative;
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
+    /* Dynamic viewport height for mobile */
     overflow: hidden;
+    display: block;
+    /* Overwrite flex from desktop */
   }
 
   /* 1. Sidebar (Default: Hidden/Overlay) */
   .sidebar {
     position: absolute;
     top: 0;
-    left: -100%; /* Hidden by default */
+    left: -100%;
+    /* Hidden by default */
     height: 100%;
-    width: 250px; /* Wider for mobile touch */
+    width: 85%;
+    /* Wider for mobile touch */
+    max-width: 300px;
     z-index: 1000;
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.2);
+    background: #111111;
+    /* Dark premium sidebar */
   }
 
   .sidebar.mobile-open {
-    left: 0; /* Slide in */
+    left: 0;
+    /* Slide in */
   }
 
   /* Sidebar Overlay Backdrop */
@@ -954,7 +964,8 @@ input:focus {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
     z-index: 999;
     opacity: 0;
     pointer-events: none;
@@ -968,13 +979,19 @@ input:focus {
 
   /* Mobile Close Button (Inside Sidebar) */
   .mobile-close-btn {
-    display: block !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
     position: absolute;
     top: 15px;
     right: 15px;
-    background: none;
+    background: rgba(255, 255, 255, 0.05);
     border: none;
-    color: var(--text-muted);
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    z-index: 1010;
   }
 
   /* 2. Main Content & ChatList Logic */
@@ -994,54 +1011,78 @@ input:focus {
     height: 100%;
     position: absolute;
     top: 0;
-    left: 100%; /* Hidden to the right by default */
+    left: 100%;
+    /* Hidden to the right by default */
     z-index: 20;
-    transition: left 0.3s ease;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--bg-main);
+    display: flex;
+    flex-direction: column;
   }
 
   /* VIEW STATE: Chat Open */
   .main-content.mobile-chat-open {
-    left: 0; /* Slide in Chat Area */
+    left: 0;
+    /* Slide in Chat Area */
   }
 
-  /* VIEW STATE: Chat Closed (List Visible) */
-  .mobile-chat-closed {
-    left: 100%; /* Hide Chat Area */
+  /* 3. Component Tweaks */
+  .chat-item {
+    padding: 18px 15px !important;
+    /* Larger touch target */
   }
 
-  /* 3. Navigation Buttons */
-  .mobile-menu-btn {
-    display: flex !important; /* Show Hamburger */
+  .chat-item h4 {
+    font-size: 15px !important;
   }
 
-  .mobile-back-btn {
-    display: flex !important; /* Show Back Chevron */
+  .chat-item p {
+    font-size: 13px !important;
   }
 
-  /* 4. Chat Area Adjustments */
-  .chat-area {
-    width: 100%;
-    height: 100%;
+  .active-info h3 {
+    font-size: 16px !important;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
+  .message-content {
+    max-width: 85% !important;
+    font-size: 14px !important;
+  }
+
+  .message-input-area {
+    padding: 10px !important;
+  }
+
+  .message-input-area input {
+    height: 45px !important;
+    font-size: 16px !important;
+    /* Prevents auto-zoom on iOS */
+  }
+
+  /* 4. Hide Analysis/Dashboard specific desktop items */
   .main-grid {
-    grid-template-columns: 1fr; /* Stack columns */
-    height: calc(100% - 60px); /* Adjust for header */
+    grid-template-columns: 1fr;
+    height: calc(100% - 60px);
   }
 
   .analysis-column {
-    display: none; /* Hide Analysis on Mobile for space */
-    /* FUTURE: Add a toggle to show analysis overlay */
+    display: none;
   }
 
   .messages-column {
     width: 100%;
-    border-right: none;
   }
 
-  .history-view {
-    padding: 10px;
+  .mobile-menu-btn,
+  .mobile-back-btn {
+    display: flex !important;
+    padding: 8px;
+    margin: -8px;
+    /* Alignment fix */
   }
 }
 
