@@ -9,43 +9,35 @@ class OpenAIService {
         }
 
         const systemPrompt = `
-Você é o Orquestrador da AURA, um consultor de vendas EXPERT focado em conversão extrema.
+Você é o Orquestrador da AURA, um consultor de vendas EXPERT focado em conversão.
 
-CONTEXTO DO NEGÓCIO:
-${briefing}
+DIRETRIZES ABSOLUTAS:
+1. NUNCA use prefixos como "Empresa:", "Aura:" ou "Vendedor:". Retorne APENAS o texto da mensagem.
+2. NUNCA diga "Olá", "Oi", "Que bom que você entrou em contato" ou qualquer saudação se houver mais de 2 mensagens no histórico. A conversa JÁ ESTÁ EM ANDAMENTO.
+3. FOCO TOTAL NA ÚLTIMA MENSAGEM: Identifique a intenção atual (ex: dúvida de preço) e responda diretamente.
+4. TOM HUMANO: Escreva como se você fosse o dono do negócio falando no WhatsApp. Curto, direto e empático.
+5. CONTEXTO DO NEGÓCIO: ${briefing}
+${extraContext ? `6. DADOS TÉCNICOS: ${extraContext}` : ''}
 
-${extraContext ? `DADOS TÉCNICOS ESPECÍFICOS PARA ESTA CONVERSA:\n${extraContext}\n` : ''}
-
-DIRETRIZES TÁTICAS (ORDEM DE IMPORTÂNCIA):
-
-1. RESPOSTA DIRETA: Identifique o que o cliente disse por ÚLTIMO e responda DIRETAMENTE a isso. 
-2. ZERO REPETIÇÃO: Se o histórico mostrar que a "Empresa" já saudou ou já perguntou "como ajudar", NÃO REPITA. 
-3. FOCO NO VALOR: Se o cliente citar preço/valor, venda os benefícios e a tecnologia primeiro, depois convide para uma avaliação.
-4. AGENDAMENTO: Todo contato deve levar o cliente um passo mais perto do agendamento/venda.
-5. WHATSAPP STYLE: Máximo 2-3 linhas. Sem termos robóticos.
-
-CLIENTE ATUAL: ${clientName}
+REGRAS DE CONVERSÃO:
+- Se o cliente perguntou preço/média: Venda o VALOR e a EXCLUSIVIDADE primeiro. Diga que cada caso é único e convide para a avaliação.
+- Máximo 3 linhas.
         `.trim();
 
-        // 1. Prepare Base Messages (System + Briefing)
+        // 1. Prepare Messages
         const messages = [
             { role: 'system', content: systemPrompt }
         ];
 
-        // 2. Add Business Context as a system reminder if needed
-        if (extraContext) {
-            messages.push({ role: 'system', content: `Lembrete: Use estes dados se relevante: ${extraContext}` });
-        }
-
-        // 3. Add Conversation History (formatted by ChatArea)
+        // 2. Add History
         if (Array.isArray(history)) {
             messages.push(...history);
         }
 
-        // 4. Final Directive
+        // 3. Force final command
         messages.push({
-            role: 'system',
-            content: 'Gere a melhor resposta estratégica agora. Seja humano, direto e ignore apresentações se já foram feitas.'
+            role: 'user',
+            content: 'Gere a melhor resposta para a última mensagem acima. Seja direto, sem saudações e sem repetir o que já foi dito nas mensagens anteriores da Empresa.'
         });
 
         try {
@@ -57,7 +49,7 @@ CLIENTE ATUAL: ${clientName}
                 body: JSON.stringify({
                     model: 'gpt-4o',
                     messages: messages,
-                    temperature: 0.8,
+                    temperature: 0.9,
                     max_tokens: 300
                 })
             });
@@ -68,7 +60,11 @@ CLIENTE ATUAL: ${clientName}
                 return null;
             }
 
-            return data.choices[0].message.content.trim();
+            let result = data.choices[0].message.content.trim();
+            // Final sanitize: Remove any labels the AI might have hallucinated
+            result = result.replace(/^(Empresa|Aura|Vendedor|Assistant):\s*/i, '');
+
+            return result;
         } catch (e) {
             console.error("AURA AI Proxy Fetch Error:", e);
             return null;
