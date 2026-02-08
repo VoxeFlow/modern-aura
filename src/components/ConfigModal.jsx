@@ -142,10 +142,7 @@ const ConfigModal = ({ isOpen, onClose }) => {
                                 <label style={{ fontSize: '10px', color: '#86868b', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>API KEY</label>
                                 <input type="password" name="apiKey" value={formData.apiKey} onChange={handleChange} required style={{ height: '40px', background: '#FFFFFF', border: '1px solid #D1D1D1', borderRadius: '10px', color: '#1d1d1f', padding: '0 12px', fontSize: '12px', width: '100%' }} />
                             </div>
-                            <div className="input-group" style={{ gridColumn: 'span 2' }}>
-                                <label style={{ fontSize: '10px', color: '#86868b', marginBottom: '8px', display: 'block', fontWeight: 'bold' }}>DETALHES DO BRIEFING (RAW)</label>
-                                <textarea name="briefing" value={formData.briefing} onChange={handleChange} rows={4} style={{ background: '#FFFFFF', border: '1px solid #D1D1D1', borderRadius: '10px', color: '#1d1d1f', padding: '12px', fontSize: '12px', width: '100%', resize: 'none' }} />
-                            </div>
+
                         </div>
                     )}
 
