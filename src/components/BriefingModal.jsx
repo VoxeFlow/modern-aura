@@ -159,20 +159,38 @@ const BriefingModal = ({ isOpen, onClose }) => {
 
                                 {status === 'showing_analysis' ? (
                                     <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                        {/* Show Answer (Read Only) */}
+                                        <div style={{ marginBottom: '20px', padding: '20px', background: '#F9F9FA', borderRadius: '16px', border: '1px solid #E5E5E7', fontSize: '15px', color: '#1d1d1f' }}>
+                                            {currentAnswer}
+                                        </div>
+
+                                        {/* Analysis Box - Clean White/Gray (No Beige) */}
                                         <div style={{
-                                            background: '#FDFCF8',
-                                            border: '1px solid #F1E9D6',
+                                            background: '#FFFFFF',
+                                            border: '1px solid #E5E5E7',
                                             borderRadius: '20px',
-                                            padding: '30px',
+                                            padding: '25px',
                                             marginBottom: '30px',
-                                            position: 'relative'
+                                            position: 'relative',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
                                         }}>
-                                            <div style={{ position: 'absolute', top: '0', left: '30px', width: '20px', height: '3px', background: 'var(--accent-primary)' }}></div>
-                                            <p style={{ margin: 0, fontSize: '15px', color: '#4a4a4c', fontStyle: 'italic', lineHeight: '1.7' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                                <Sparkles size={16} color="var(--accent-primary)" />
+                                                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Insight Aura</span>
+                                            </div>
+                                            <p style={{ margin: 0, fontSize: '14px', color: '#4a4a4c', fontStyle: 'italic', lineHeight: '1.6' }}>
                                                 "{lastAnalysis}"
                                             </p>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <button
+                                                onClick={() => setStatus('idle')} // Go back to editing
+                                                style={{ background: 'transparent', border: 'none', color: '#86868b', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}
+                                            >
+                                                Editar minha resposta
+                                            </button>
+
                                             <button
                                                 className="btn-primary"
                                                 onClick={proceedToNext}
@@ -299,8 +317,8 @@ const BriefingModal = ({ isOpen, onClose }) => {
                                                 <div style={{
                                                     marginTop: '15px',
                                                     padding: '18px',
-                                                    background: '#FDFCF8',
-                                                    border: '1px solid #F1E9D6',
+                                                    background: '#F9F9FA', /* CHANGED: Clean Gray */
+                                                    border: '1px solid #E5E5E7', /* CHANGED: Clean Border */
                                                     borderRadius: '16px',
                                                     display: 'flex',
                                                     gap: '12px'
