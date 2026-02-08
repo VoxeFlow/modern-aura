@@ -12,17 +12,13 @@ const BriefingModal = ({ isOpen, onClose }) => {
     const [editingId, setEditingId] = useState(null);
     const [tempAnswer, setTempAnswer] = useState("");
 
-    // Initialize view based on data presence
+    // Start in dashboard view by default
     useEffect(() => {
         if (isOpen) {
-            if (!knowledgeBase || knowledgeBase.length === 0) {
-                setView('interview');
-                setStatus('idle');
-            } else {
-                setView('dashboard');
-            }
+            setView('dashboard');
+            setStatus('idle');
         }
-    }, [isOpen, knowledgeBase]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -107,6 +103,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
     };
 
     const safeKB = knowledgeBase || [];
+    const hasRawBriefing = briefing && briefing.length > 0 && safeKB.length === 0;
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', zIndex: 1000, backgroundColor: 'rgba(255,255,255,0.1)' }}>
@@ -131,7 +128,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                     </div>
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <button
-                            onClick={() => { if (confirm("Deseja apagar o conhecimento atual e começar uma nova entrevista?")) { setKnowledgeBase([]); setView('interview'); setStatus('idle'); } }}
+                            onClick={() => { if (confirm("Deseja apagar o conhecimento atual e começar uma nova entrevista?")) { setKnowledgeBase([]); setConfig({ briefing: '' }); setView('interview'); setStatus('idle'); } }}
                             style={{ background: '#FFF5F5', color: '#ff4d4d', border: '1px solid #FFEBEB', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                         >
                             Resetar Cérebro
@@ -232,11 +229,30 @@ const BriefingModal = ({ isOpen, onClose }) => {
                         </div>
                     ) : (
                         <div className="knowledge-dashboard" style={{ maxWidth: '750px', margin: '0 auto' }}>
-                            {safeKB.length === 0 ? (
+                            {/* IF NO STRUCTURED DATA, BUT RAW BRIEFING EXISTS */}
+                            {safeKB.length === 0 && hasRawBriefing && (
+                                <div style={{ marginBottom: '30px', padding: '20px', background: '#FFF9E6', border: '1px solid #FFE4A3', borderRadius: '16px' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', color: '#977A23' }}>Conhecimento Bruto Detectado</h4>
+                                    <p style={{ margin: 0, fontSize: '13px', color: '#977A23', opacity: 0.8 }}>
+                                        Você possui dados de briefing inseridos manualmente. Eles estão ativos, mas não visualizáveis em cards estruturados.
+                                        Para criar uma estrutura organizada, inicie a entrevista abaixo.
+                                    </p>
+                                </div>
+                            )}
+
+                            {safeKB.length === 0 && !hasRawBriefing ? (
                                 <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                                    <h3 style={{ color: '#1d1d1f' }}>Cérebro Vazio</h3>
-                                    <p style={{ color: '#86868b' }}>Ensine à Aura como seu negócio funciona.</p>
-                                    <button onClick={() => setView('interview')} className="btn-primary" style={{ marginTop: '20px' }}>Começar Treinamento</button>
+                                    <div style={{ background: '#F9F9FA', display: 'inline-flex', padding: '20px', borderRadius: '50%', marginBottom: '20px' }}>
+                                        <Brain size={40} color="#E5E5E7" />
+                                    </div>
+                                    <h3 style={{ color: '#1d1d1f', marginBottom: '10px' }}>Cérebro Não Estruturado</h3>
+                                    <p style={{ color: '#86868b', maxWidth: '400px', margin: '0 auto 30px auto', lineHeight: '1.5' }}>
+                                        A Aura ainda não possui um mapa mental estruturado do seu negócio.
+                                        Inicie a entrevista para criar regras claras de atendimento.
+                                    </p>
+                                    <button onClick={() => setView('interview')} className="btn-primary" style={{ padding: '15px 40px', borderRadius: '50px', fontWeight: 'bold' }}>
+                                        Iniciar Entrevista Guiada <ArrowRight size={16} />
+                                    </button>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
@@ -301,9 +317,27 @@ const BriefingModal = ({ isOpen, onClose }) => {
                                         </div>
                                     ))}
 
-                                    <div style={{ textAlign: 'center', marginTop: '30px' }}>
+                                    {/* Action to add more or restart */}
+                                    <div style={{
+                                        marginTop: '30px',
+                                        padding: '20px',
+                                        borderRadius: '20px',
+                                        background: '#F9F9FA',
+                                        border: '1px solid #E5E5E7',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '15px'
+                                    }}>
+                                        <p style={{ margin: 0, fontSize: '13px', color: '#86868b' }}>Deseja expandir o conhecimento da Aura?</p>
+                                        <button onClick={() => setView('interview')} className="btn-secondary" style={{ borderRadius: '50px', padding: '10px 30px', fontSize: '12px' }}>
+                                            <Plus size={14} style={{ marginRight: '5px' }} /> Continuar Entrevista
+                                        </button>
+                                    </div>
+
+                                    <div style={{ textAlign: 'center', marginTop: '10px' }}>
                                         <button onClick={onClose} className="btn-primary" style={{ padding: '15px 60px', borderRadius: '50px' }}>
-                                            Finalizar e Salvar Cérebro
+                                            Finalizar e Salvar
                                         </button>
                                     </div>
                                 </div>
