@@ -235,11 +235,48 @@ const ConnectModal = ({ isOpen, onClose }) => {
                     </div>
 
                     {isConnected ? (
-                        <div style={{ padding: '20px' }}>
-                            <p style={{ marginBottom: '20px', fontSize: '14px', opacity: 0.8 }}>
-                                Sua instância <strong>{instanceName}</strong> está ativa e pronta para uso.
-                            </p>
-                            <button className="btn-danger" onClick={handleLogout} disabled={loading}>
+                        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '12px 25px',
+                                background: 'rgba(74, 222, 128, 0.08)',
+                                borderRadius: '100px',
+                                border: '1px solid rgba(74, 222, 128, 0.2)',
+                                marginBottom: '40px'
+                            }}>
+                                <div style={{ width: '8px', height: '8px', background: '#4ade80', borderRadius: '50%', boxShadow: '0 0 10px #4ade80' }}></div>
+                                <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '800', letterSpacing: '1px' }}>SISTEMA CONECTADO</span>
+                                <RefreshCw size={16} color="#4ade80" style={{ cursor: 'pointer', opacity: 0.5 }} className={status === 'connecting' ? 'spin' : ''} onClick={checkStatus} title="Verificar Status Agora" />
+                            </div>
+
+                            <div style={{ marginBottom: '50px' }}>
+                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginBottom: '10px' }}>Instância Ativa</div>
+                                <div style={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>{instanceName}</div>
+                                <div style={{ color: '#4ade80', fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>Sincronização bidirecional ativa</div>
+                            </div>
+
+                            <button
+                                onClick={handleLogout} // Changed from handleDisconnect to handleLogout to match existing function
+                                style={{
+                                    background: 'rgba(248, 113, 113, 0.05)',
+                                    color: '#f87171',
+                                    border: '1px solid rgba(248, 113, 113, 0.2)',
+                                    padding: '18px 50px',
+                                    borderRadius: '50px',
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    margin: '0 auto'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.1)'; e.currentTarget.style.borderColor = '#f87171'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.05)'; e.currentTarget.style.borderColor = 'rgba(248, 113, 113, 0.2)'; }}
+                            >
                                 <LogOut size={18} /> Desconectar WhatsApp
                             </button>
                         </div>
@@ -264,20 +301,13 @@ const ConnectModal = ({ isOpen, onClose }) => {
                     )}
 
                     {/* DEBUG SECTION */}
-                    <details style={{ marginTop: '20px', textAlign: 'left', fontSize: '10px', opacity: 0.7, borderTop: '1px solid #ccc', paddingTop: '10px' }}>
-                        <summary>Debug Info (Clique para expandir)</summary>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                            {`API URL: ${apiUrl}
-Instance: ${instanceName}
-Status: ${status}
-Polling Error: ${debugInfo.error || 'None'}
-Last Response: ${debugInfo.lastResponse || 'None'}
-Socket: ${socket ? (socket.connected ? 'Connected' : 'Disconnected') : 'Null'}`}
-                        </pre>
-                    </details>
-                </div>
-            </div>
+                    Last Response: ${debugInfo.lastResponse || 'None'}
+                    Socket: ${socket ? (socket.connected ? 'Connected' : 'Disconnected') : 'Null'}`}
+                </pre>
+            </details>
         </div>
+            </div >
+        </div >
     );
 };
 

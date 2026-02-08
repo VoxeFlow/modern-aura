@@ -116,46 +116,76 @@ const ConfigModal = ({ isOpen, onClose }) => {
                         </button>
                     </div>
 
-                    {/* BRIEFING PREVIEW SECTION */}
-                    <div style={{ marginBottom: '30px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                            <label style={{ margin: 0, fontWeight: 'bold', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>Briefing Estratégico do Negócio</label>
+                    {/* STRUCTURED BRIEFING REVIEW - ANNEX 3 FIX */}
+                    <div style={{ marginBottom: '35px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
+                            <label style={{ margin: 0, fontWeight: 'bold', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>Revisão Estratégica Aura</label>
+                            <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '10px', cursor: 'pointer', opacity: 0.7 }}>Manutenção Direta (TXT)</button>
                         </div>
-                        <textarea
-                            name="briefing"
-                            value={formData.briefing}
-                            onChange={handleChange}
-                            rows={5}
-                            placeholder="Recomendamos usar o 'Cérebro IA' acima para um treinamento guiado..."
-                            style={{
-                                width: '100%',
-                                background: 'rgba(0,0,0,0.2)',
-                                border: '1px solid rgba(255,255,255,0.05)',
-                                color: 'rgba(255,255,255,0.8)',
-                                padding: '18px',
-                                borderRadius: '16px',
-                                resize: 'none',
-                                fontSize: '12px',
-                                lineHeight: '1.6',
-                                outline: 'none',
-                                transition: 'all 0.3s'
-                            }}
-                            onFocus={e => e.target.style.borderColor = 'rgba(197, 160, 89, 0.3)'}
-                            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.05)'}
-                        />
+
+                        <div style={{
+                            width: '100%',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: '20px',
+                            padding: '5px',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                        }} className="scrollable">
+                            {store.knowledgeBase && store.knowledgeBase.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    {store.knowledgeBase.map((point, idx) => (
+                                        <div key={point.id} style={{
+                                            padding: '20px',
+                                            borderBottom: idx === store.knowledgeBase.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.03)',
+                                            background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent'
+                                        }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'white', marginBottom: '8px', lineHeight: '1.4' }}>
+                                                {point.q}
+                                            </div>
+                                            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', marginBottom: '10px' }}>
+                                                {point.a}
+                                            </div>
+                                            {point.analysis && (
+                                                <div style={{ fontSize: '11px', color: 'var(--accent-primary)', opacity: 0.6, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <Sparkles size={10} /> {point.analysis.substring(0, 100)}...
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>
+                                    Nenhum dado estratégico processado.<br />Use o "Cérebro IA" acima para treinar a Aura.
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* ADVANCED SECTION TOGGLE */}
-                    <div
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 0', borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', opacity: showAdvanced ? 1 : 0.4, transition: 'opacity 0.3s' }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Lock size={14} color="var(--accent-primary)" />
-                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'white' }}>Área Técnica (Avançado)</span>
+                    {showAdvanced && (
+                        <div style={{ marginBottom: '30px', animation: 'fadeIn 0.3s ease' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                                <AlertTriangle size={12} color="#f87171" />
+                                <label style={{ margin: 0, fontWeight: 'bold', fontSize: '11px', color: '#f87171' }}>Modo Manutenção (Edição Bruta)</label>
+                            </div>
+                            <textarea
+                                name="briefing"
+                                value={formData.briefing}
+                                onChange={handleChange}
+                                rows={4}
+                                style={{
+                                    width: '100%',
+                                    background: 'rgba(248, 113, 113, 0.05)',
+                                    border: '1px solid rgba(248, 113, 113, 0.2)',
+                                    color: 'rgba(255,255,255,0.5)',
+                                    padding: '15px',
+                                    borderRadius: '12px',
+                                    fontSize: '11px',
+                                    fontFamily: 'monospace'
+                                }}
+                            />
                         </div>
-                        {showAdvanced ? <ChevronUp size={16} color="white" /> : <ChevronDown size={16} color="white" />}
-                    </div>
+                    )}
 
                     {showAdvanced && (
                         <div style={{ paddingTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', animation: 'fadeIn 0.3s ease' }}>

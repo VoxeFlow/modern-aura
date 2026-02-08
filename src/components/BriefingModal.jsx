@@ -129,28 +129,68 @@ const BriefingModal = ({ isOpen, onClose }) => {
                 <div className="briefing-body" style={{ padding: '40px', overflowY: 'auto', flex: 1, background: '#080808' }}>
 
                     {view === 'interview' ? (
-                        <div className="interview-flow" style={{ maxWidth: '650px', margin: '40px auto' }}>
-                            <div className="question-area" style={{ background: 'rgba(255,255,255,0.02)', padding: '40px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <Sparkles size={16} color="var(--accent-primary)" />
-                                    <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px' }}>Aura Mentor</span>
+                        <div className="interview-flow" style={{ maxWidth: '700px', margin: '20px auto' }}>
+                            <div className="question-area" style={{
+                                background: 'linear-gradient(165deg, rgba(197, 160, 89, 0.04), rgba(0,0,0,0.4))',
+                                padding: '50px',
+                                borderRadius: '32px',
+                                border: '1px solid rgba(197, 160, 89, 0.1)',
+                                boxShadow: '0 30px 60px rgba(0,0,0,0.5)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
+                                    <div style={{ background: 'var(--accent-primary)', height: '2px', width: '30px' }}></div>
+                                    <span style={{ color: 'var(--accent-primary)', fontWeight: '800', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '3px' }}>Aura Mentor</span>
                                 </div>
-                                <h3 style={{ margin: '0 0 35px 0', fontSize: '24px', color: 'white', lineHeight: '1.4', fontWeight: 'bold' }}>{status === 'thinking' ? "Refinando sua resposta..." : currentQuestion}</h3>
-                                <textarea
-                                    autoFocus
-                                    value={currentAnswer}
-                                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                                    placeholder="Sua resposta moldará como a IA atende seus clientes..."
-                                    style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '25px', color: 'white', fontSize: '16px', minHeight: '180px', lineHeight: '1.6', outline: 'none', resize: 'none' }}
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
+                                <h3 style={{ margin: '0 0 40px 0', fontSize: '28px', color: 'white', lineHeight: '1.3', fontWeight: '800', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                    {status === 'thinking' ? "Gerando Insight Estratégico..." : currentQuestion}
+                                </h3>
+                                <div style={{ position: 'relative' }}>
+                                    <textarea
+                                        autoFocus
+                                        value={currentAnswer}
+                                        onChange={(e) => setCurrentAnswer(e.target.value)}
+                                        placeholder="Digite sua visão aqui..."
+                                        style={{
+                                            width: '100%',
+                                            background: 'rgba(0,0,0,0.6)',
+                                            border: '1px solid rgba(255,255,255,0.08)',
+                                            borderRadius: '20px',
+                                            padding: '30px',
+                                            color: 'white',
+                                            fontSize: '17px',
+                                            minHeight: '220px',
+                                            lineHeight: '1.6',
+                                            outline: 'none',
+                                            resize: 'none',
+                                            transition: 'border-color 0.3s'
+                                        }}
+                                        onFocus={e => e.target.style.borderColor = 'rgba(197, 160, 89, 0.5)'}
+                                        onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+                                    />
+                                    {status === 'thinking' && (
+                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+                                            <RefreshCw className="spin" size={32} color="var(--accent-primary)" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '40px' }}>
+                                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontWeight: 'bold' }}>PRESSIONE ENTER PARA ENVIAR</span>
                                     <button
                                         className="btn-primary"
                                         onClick={handleNextInterview}
                                         disabled={!currentAnswer.trim() || status === 'thinking'}
-                                        style={{ padding: '15px 40px', borderRadius: '50px', fontWeight: 'bold' }}
+                                        style={{
+                                            padding: '18px 50px',
+                                            borderRadius: '100px',
+                                            fontWeight: '800',
+                                            fontSize: '15px',
+                                            boxShadow: '0 10px 30px rgba(197, 160, 89, 0.4)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px'
+                                        }}
                                     >
-                                        {status === 'thinking' ? <RefreshCw className="spin" size={20} /> : "Próximo Passo"} <ArrowRight size={20} />
+                                        {status === 'thinking' ? "Aura Analisando..." : "Confirmar Visão"} <ArrowRight size={20} />
                                     </button>
                                 </div>
                             </div>
