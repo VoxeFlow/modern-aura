@@ -7,7 +7,7 @@ import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 
 const ChatArea = ({ isArchived = false }) => {
-    const { activeChat, messages, setMessages, clearMessages, briefing } = useStore();
+    const { activeChat, messages, setMessages, clearMessages, briefing, setActiveChat } = useStore();
     const [loading, setLoading] = useState(false);
     const [suggestion, setSuggestion] = useState('');
     const [analysisData, setAnalysisData] = useState({ level: '', intent: '', strategy: '' });
