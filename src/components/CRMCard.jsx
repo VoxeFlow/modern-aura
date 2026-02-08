@@ -81,6 +81,7 @@ const CRMCard = ({ chat, tag }) => {
 
     const handleOpenChat = () => {
         setActiveChat({ id: jid, name: patientName });
+        useStore.getState().setCurrentView('dashboard');
     };
 
     const getPriorityColor = (priority) => {
