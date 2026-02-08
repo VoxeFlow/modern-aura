@@ -219,6 +219,48 @@ RETORNE EM JSON:
             };
         }
     }
+
+    async generateNextBriefingQuestion(currentAnswers) {
+        const openaiKey = MASTER_AI_KEY;
+        if (!openaiKey) return "Qual o próximo detalhe importante do seu negócio?";
+
+        const systemPrompt = `
+Você é o Arquiteto de Inteligência da AURA. Sua missão é entrevistar o dono de um negócio para criar uma base de conhecimento PERFEITA.
+
+REGRAS DA ENTREVISTA:
+1. Analise o que já sabemos: ${JSON.stringify(currentAnswers)}
+2. IDENTIFIQUE LACUNAS: Falta o endereço? É produto ou serviço? Como é o checkout? Tem garantia?
+3. PERGUNTA ÚNICA: Faça APENAS UMA pergunta por vez.
+4. FOCO EM VENDAS: Pergunte coisas que ajudem a IA a vender melhor depois (ex: diferenciais, dores do cliente).
+5. CURTO E DIRETO: A pergunta deve ser fácil de responder no celular.
+6. FINALIZAÇÃO: Se você achar que já tem informações suficientes para uma operação de elite (mínimo 5-6 pontos chave), responda apenas com a palavra "COMPLETE".
+
+ESTILO: Amigável, profissional e focado em eficiência.
+        `.trim();
+
+        try {
+            const response = await fetch('/api/ai', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: 'Gere a próxima pergunta da entrevista ou diga COMPLETE.' }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 150
+                })
+            });
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content?.trim() || "Algum outro detalhe?";
+        } catch (e) {
+            return "Algum outro detalhe importante?";
+        }
+    }
 }
 
 export default new OpenAIService();

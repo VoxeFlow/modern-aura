@@ -1,82 +1,58 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, Save, Sparkles, Brain } from 'lucide-react';
+import { X, ArrowRight, Save, Sparkles, Brain } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const BriefingModal = ({ isOpen, onClose }) => {
     const { briefing, setConfig } = useStore();
-    const [step, setStep] = useState(0);
-    const [answers, setAnswers] = useState({
-        business: '',
-        competence: '',
-        audience: '',
-        payments: '',
-        rules: '',
-        tone: ''
-    });
+    const [status, setStatus] = useState('idle'); // idle, asking, thinking, finished
+    const [currentQuestion, setCurrentQuestion] = useState("Para começarmos: Qual o nome da sua empresa e o que exatamente vocês fazem?");
+    const [currentAnswer, setCurrentAnswer] = useState("");
+    const [history, setHistory] = useState([]); // Array of { q, a }
+    const [isSaving, setIsSaving] = useState(false);
 
     if (!isOpen) return null;
 
-    const steps = [
-        {
-            title: "Identidade & Segmento",
-            q: "Qual o nome da empresa e o segmento de atuação?",
-            key: "business",
-            placeholder: "Ex: Clínica Sorriso (Odontologia), Advocacia Silva (Direito Civil), Loja Tech (E-commerce de Gadgets)..."
-        },
-        {
-            title: "Proposta de Valor (WOW)",
-            q: "Quais são os 3 principais diferenciais que fazem o cliente dizer 'UAU'?",
-            key: "competence",
-            placeholder: "Ex: Atendimento em 15min, tecnologia exclusiva X, garantia de 5 anos, orçamento sem compromisso..."
-        },
-        {
-            title: "Iscas de Conversão",
-            q: "Quais perguntas curtas o Aura deve fazer para sondar o interesse do cliente?",
-            key: "audience",
-            placeholder: "Ex: 'Você já teve alguma experiência com isso?', 'O que mais te incomoda hoje?', 'Já tentou resolver de outra forma?'"
-        },
-        {
-            title: "Política Comercial",
-            q: "Como lidamos com Preços, Descontos e Pagamentos?",
-            key: "payments",
-            placeholder: "Ex: Não damos preço fixo por Whats, mas temos parcelamento em 24x e desconto de 10% no Pix."
-        },
-        {
-            title: "Regras de Fechamento",
-            q: "Quais as regras inegociáveis para converter o lead?",
-            key: "rules",
-            placeholder: "Ex: Nunca deixar o cliente sem pergunta no final. Sempre convidar para uma visita presencial ou call."
-        }
-    ];
+    const handleNext = async () => {
+        if (!currentAnswer.trim()) return;
 
-    const handleNext = () => {
-        if (step < steps.length - 1) setStep(step + 1);
-        else handleFinish();
+        const newHistory = [...history, { q: currentQuestion, a: currentAnswer }];
+        setHistory(newHistory);
+        setCurrentAnswer("");
+        setStatus('thinking');
+
+        try {
+            const { default: OpenAIService } = await import('../services/openai');
+            const nextQ = await OpenAIService.generateNextBriefingQuestion(newHistory);
+
+            if (nextQ.includes("COMPLETE") || newHistory.length >= 10) {
+                setStatus('finished');
+            } else {
+                setCurrentQuestion(nextQ);
+                setStatus('idle');
+            }
+        } catch (e) {
+            console.error("AURA: Erro ao gerar próxima pergunta", e);
+            setStatus('finished');
+        }
     };
 
     const handleFinish = () => {
-        // Construct a highly structured Knowledge Base object for the AI
-        const finalBriefing = `
-[SEGMENTO]: ${answers.business}
-[DIFERENCIAIS]: ${answers.competence}
-[ISCAS_CONVERSAO]: ${answers.audience}
-[FINANCEIRO]: ${answers.payments}
-[DIRETRIZES]: ${answers.rules}
-        `.trim();
+        setIsSaving(true);
+        // Map history to a structured string that AI can parse easily
+        const knowledgeBase = history.map(h => `PERGUNTA: ${h.q}\nRESPOSTA: ${h.a}`).join('\n\n');
 
-        setConfig({ briefing: finalBriefing });
+        setConfig({ briefing: knowledgeBase });
+        setIsSaving(false);
         onClose();
     };
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="modal-content glass-panel" style={{ width: '90%', maxWidth: '650px', padding: '0', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-content glass-panel" style={{ width: '90%', maxWidth: '650px', padding: '0', maxHeight: '90vh', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
                 <div className="briefing-header" style={{
                     padding: '30px',
                     background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
                     borderBottom: '1px solid var(--glass-border)',
-                    borderTopLeftRadius: '20px', // FIX: Match container radius
-                    borderTopRightRadius: '20px' // FIX: Match container radius
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -84,8 +60,8 @@ const BriefingModal = ({ isOpen, onClose }) => {
                                 <Brain size={32} color="white" />
                             </div>
                             <div>
-                                <h2 style={{ color: 'white', margin: 0 }}>Briefing Estratégico AI</h2>
-                                <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '13px' }}>Construindo a inteligência do seu negócio</p>
+                                <h2 style={{ color: 'white', margin: 0 }}>Arquiteto de IA Aura</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '13px' }}>Construindo o cérebro personalizado do seu negócio</p>
                             </div>
                         </div>
                         <X size={24} color="white" onClick={onClose} style={{ cursor: 'pointer' }} />
@@ -93,65 +69,82 @@ const BriefingModal = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="briefing-body" style={{ padding: '40px' }}>
-                    <div className="step-indicator" style={{ display: 'flex', gap: '8px', marginBottom: '30px' }}>
-                        {steps.map((_, i) => (
-                            <div key={i} style={{
-                                flex: 1,
-                                height: '4px',
-                                borderRadius: '2px',
-                                background: step >= i ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
-                                transition: 'all 0.3s'
-                            }} />
-                        ))}
-                    </div>
 
-                    <div className="question-area" style={{ minHeight: '200px' }}>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Passo {step + 1} de {steps.length}: {steps[step].title}
-                        </span>
-                        <h3 style={{ margin: '15px 0 25px 0', fontSize: '22px', lineHeight: '1.4' }}>{steps[step].q}</h3>
+                    {status === 'finished' ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                            <div style={{ width: '80px', height: '80px', background: 'rgba(197, 160, 89, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                <Sparkles size={40} color="var(--accent-primary)" />
+                            </div>
+                            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Inteligência Mapeada!</h3>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>
+                                Já tenho detalhes suficientes para transformar seu atendimento em uma máquina de vendas.
+                                Explore as respostas sugeridas e veja a mágica acontecer.
+                            </p>
+                            <button className="btn-primary" onClick={handleFinish} style={{ width: '100%', padding: '15px' }}>
+                                Começar Agora <ArrowRight size={18} />
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="question-area" style={{ minHeight: '180px' }}>
+                                <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                                    Entrevista em andamento • {history.length + 1}ª Pergunta
+                                </span>
+                                <h3 style={{ margin: '15px 0 25px 0', fontSize: '20px', lineHeight: '1.4' }}>
+                                    {status === 'thinking' ? "Processando informações..." : currentQuestion}
+                                </h3>
 
-                        <textarea
-                            value={answers[steps[step].key]}
-                            onChange={(e) => setAnswers({ ...answers, [steps[step].key]: e.target.value })}
-                            placeholder={steps[step].placeholder}
-                            style={{
-                                width: '100%',
-                                background: '#ffffff',
-                                border: '1px solid rgba(0, 0, 0, 0.1)',
-                                borderRadius: '12px',
-                                padding: '20px',
-                                color: 'var(--text-main)', // Changed from white to dark
-                                fontSize: '16px',
-                                minHeight: '120px',
-                                outline: 'none',
-                                resize: 'none'
-                            }}
-                        />
-                    </div>
+                                <textarea
+                                    autoFocus
+                                    value={currentAnswer}
+                                    onChange={(e) => setCurrentAnswer(e.target.value)}
+                                    placeholder="Responda aqui com detalhes..."
+                                    disabled={status === 'thinking'}
+                                    style={{
+                                        width: '100%',
+                                        background: '#ffffff',
+                                        border: '1px solid rgba(0, 0, 0, 0.1)',
+                                        borderRadius: '16px',
+                                        padding: '20px',
+                                        color: 'var(--text-main)',
+                                        fontSize: '16px',
+                                        minHeight: '130px',
+                                        outline: 'none',
+                                        resize: 'none',
+                                        opacity: status === 'thinking' ? 0.5 : 1,
+                                        transition: 'all 0.3s'
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleNext();
+                                        }
+                                    }}
+                                />
+                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Pressione Enter para enviar • Shift+Enter para nova linha</p>
+                            </div>
 
-                    <div className="briefing-footer" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px', gap: '15px' }}>
-                        <button
-                            className="btn-secondary"
-                            onClick={() => setStep(step - 1)}
-                            disabled={step === 0}
-                            style={{ padding: '12px 25px', borderRadius: '10px' }}
-                        >
-                            <ArrowLeft size={18} /> Anterior
-                        </button>
-
-                        <button
-                            className="btn-primary"
-                            onClick={handleNext}
-                            style={{ padding: '12px 30px', borderRadius: '10px' }}
-                        >
-                            {step === steps.length - 1 ? (
-                                <>Geral Inteligência <Save size={18} /></>
-                            ) : (
-                                <>Próximo Passo <ArrowRight size={18} /></>
-                            )}
-                        </button>
-                    </div>
+                            <div className="briefing-footer" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px', gap: '15px' }}>
+                                {history.length > 2 && (
+                                    <button
+                                        className="btn-secondary"
+                                        onClick={() => setStatus('finished')}
+                                        style={{ padding: '12px 20px', fontSize: '13px' }}
+                                    >
+                                        Finalizar com o que já sei
+                                    </button>
+                                )}
+                                <button
+                                    className="btn-primary"
+                                    onClick={handleNext}
+                                    disabled={!currentAnswer.trim() || status === 'thinking'}
+                                    style={{ padding: '12px 30px' }}
+                                >
+                                    {status === 'thinking' ? 'Analisando...' : 'Próxima'} <ArrowRight size={18} />
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
