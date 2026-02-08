@@ -3,26 +3,29 @@ import CRMCard from './CRMCard';
 
 const CRMColumn = ({ tag, chats }) => {
     return (
-        <div className="crm-column glass-panel" style={{
-            background: 'rgba(255,255,255,0.015)',
-            border: '1px solid rgba(255,255,255,0.04)',
-            borderTop: `4px solid ${tag.color}`,
-            borderRadius: '24px',
-            minHeight: '600px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+        <div className="crm-column" style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '20px',
+            minWidth: '300px',
+            border: '1px solid rgba(0,0,0,0.05)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
         }}>
-            <div className="column-header" style={{ padding: '20px 25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: 'white', display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    <span style={{ color: tag.color, textShadow: `0 0 10px ${tag.color}44` }}>{tag.icon}</span> {tag.name}
+            <div className="column-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: '#1d1d1f', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tag.color }}></div>
+                    {tag.name}
                 </span>
                 <span className="count" style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    color: tag.color,
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    border: `1px solid ${tag.color}33`
+                    background: 'rgba(0,0,0,0.03)',
+                    color: '#86868b',
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
                 }}>
                     {chats.length}
                 </span>

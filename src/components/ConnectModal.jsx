@@ -216,110 +216,95 @@ const ConnectModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <QrCode size={24} color="var(--accent-primary)" />
-                        <h3>Conexão WhatsApp</h3>
+        <div className="modal-overlay" onClick={onClose} style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255,255,255,0.1)' }}>
+            <div className="modal-content glass-panel" style={{ width: '450px', background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.05)', padding: '0', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header" style={{ padding: '25px 30px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ background: 'var(--accent-primary)', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <QrCode size={20} color="white" />
+                        </div>
+                        <h3 style={{ margin: 0, color: '#1d1d1f', fontSize: '18px', fontWeight: 'bold' }}>Conexão WhatsApp</h3>
                     </div>
-                    <X size={24} onClick={onClose} style={{ cursor: 'pointer' }} />
+                    <X size={24} onClick={onClose} style={{ cursor: 'pointer', opacity: 0.3 }} />
                 </div>
 
-                <div className="connection-body" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', alignItems: 'center' }}>
-                        <span className={`status-badge ${isConnected ? 'connected' : 'disconnected'}`}>
-                            {isConnected ? 'Conectado' : 'Desconectado'}
-                        </span>
-                        <RefreshCw size={16} onClick={checkStatus} style={{ cursor: 'pointer', opacity: 0.5 }} className={loading ? 'spin' : ''} />
-                    </div>
+                <div className="connection-body" style={{ padding: '40px', textAlign: 'center' }}>
 
                     {isConnected ? (
-                        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                        <div style={{ textAlign: 'center' }}>
                             <div style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '12px',
-                                padding: '12px 25px',
-                                background: 'rgba(74, 222, 128, 0.08)',
+                                gap: '10px',
+                                padding: '10px 25px',
+                                background: '#F0FFF4',
+                                color: '#276749',
                                 borderRadius: '100px',
-                                border: '1px solid rgba(74, 222, 128, 0.2)',
-                                marginBottom: '40px'
+                                fontSize: '13px',
+                                fontWeight: 'bold',
+                                border: '1px solid #C6F6D5',
+                                marginBottom: '35px'
                             }}>
-                                <div style={{ width: '8px', height: '8px', background: '#4ade80', borderRadius: '50%', boxShadow: '0 0 10px #4ade80' }}></div>
-                                <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '800', letterSpacing: '1px' }}>SISTEMA CONECTADO</span>
-                                <RefreshCw size={16} color="#4ade80" style={{ cursor: 'pointer', opacity: 0.5 }} className={status === 'connecting' ? 'spin' : ''} onClick={checkStatus} title="Verificar Status Agora" />
+                                <div style={{ width: '8px', height: '8px', background: '#38A169', borderRadius: '50%', boxShadow: '0 0 10px rgba(56, 161, 105, 0.4)' }}></div>
+                                CONECTADO
+                                <RefreshCw size={14} style={{ cursor: 'pointer', opacity: 0.5 }} className={status === 'connecting' ? 'spin' : ''} onClick={checkStatus} />
                             </div>
 
-                            <div style={{ marginBottom: '50px' }}>
-                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginBottom: '10px' }}>Instância Ativa</div>
-                                <div style={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>{instanceName}</div>
-                                <div style={{ color: '#4ade80', fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>Sincronização bidirecional ativa</div>
+                            <div style={{ marginBottom: '40px' }}>
+                                <p style={{ color: '#86868b', margin: '0 0 10px 0', fontSize: '14px' }}>Instância Ativa</p>
+                                <p style={{ color: '#1d1d1f', margin: 0, fontSize: '24px', fontWeight: 'bold' }}>{instanceName}</p>
                             </div>
 
                             <button
-                                onClick={handleLogout} // Changed from handleDisconnect to handleLogout to match existing function
+                                onClick={handleLogout}
                                 style={{
-                                    background: 'rgba(248, 113, 113, 0.05)',
-                                    color: '#f87171',
-                                    border: '1px solid rgba(248, 113, 113, 0.2)',
-                                    padding: '18px 50px',
+                                    background: '#FFF5F5',
+                                    color: '#E53E3E',
+                                    border: '1px solid #FED7D7',
+                                    padding: '15px 40px',
                                     borderRadius: '50px',
-                                    fontSize: '13px',
+                                    fontSize: '14px',
                                     fontWeight: 'bold',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '12px',
-                                    margin: '0 auto'
+                                    gap: '10px',
+                                    margin: '0 auto',
+                                    transition: 'all 0.2s'
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.1)'; e.currentTarget.style.borderColor = '#f87171'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.05)'; e.currentTarget.style.borderColor = 'rgba(248, 113, 113, 0.2)'; }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#FED7D7'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#FFF5F5'}
                             >
                                 <LogOut size={18} /> Desconectar WhatsApp
                             </button>
                         </div>
                     ) : (
-                        <div style={{ padding: '10px' }}>
+                        <div>
                             {qrCode ? (
-                                <div className="qr-container">
-                                    <img src={qrCode} alt="WhatsApp QR Code" className="qr-code" />
-                                    <p style={{ color: '#333', fontSize: '12px', fontWeight: 600 }}>Aponte seu WhatsApp para este código</p>
+                                <div style={{ padding: '20px', background: 'white', borderRadius: '24px', border: '1px solid #E5E5E7' }}>
+                                    <img src={qrCode} alt="QR Code" style={{ width: '100%', borderRadius: '12px' }} />
+                                    <p style={{ marginTop: '20px', color: '#1d1d1f', fontWeight: 'bold', fontSize: '14px' }}>Escaneie para conectar</p>
                                 </div>
                             ) : (
-                                <div style={{ padding: '30px' }}>
-                                    <p style={{ marginBottom: '20px', fontSize: '14px', opacity: 0.8 }}>
-                                        Clique no botão abaixo para gerar um novo QR Code de conexão.
-                                    </p>
-                                    <button className="btn-primary" style={{ width: '100%' }} onClick={handleConnect} disabled={loading}>
-                                        {loading ? 'Gerando...' : 'Conectar Novo WhatsApp'}
+                                <div style={{ padding: '20px' }}>
+                                    <p style={{ color: '#86868b', fontSize: '14px', marginBottom: '30px' }}>Gere um novo QR Code para autenticar sua sessão do WhatsApp.</p>
+                                    <button className="btn-primary" style={{ width: '100%', padding: '16px', borderRadius: '16px' }} onClick={handleConnect} disabled={loading}>
+                                        {loading ? 'Preparando...' : 'Gerar QR Code Agora'}
                                     </button>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* LOGS SECTION - REFINED */}
-                    <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px', textAlign: 'left' }}>
+                    {/* LOGS SECTION - CLEAN */}
+                    <div style={{ marginTop: '40px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '20px', textAlign: 'left' }}>
                         <details style={{ cursor: 'pointer' }}>
-                            <summary style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Painel Técnico de Depuração</summary>
-                            <div style={{
-                                marginTop: '15px',
-                                padding: '15px',
-                                background: 'rgba(0,0,0,0.3)',
-                                color: '#4ade80',
-                                fontSize: '11px',
-                                fontFamily: 'monospace',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(255,255,255,0.03)',
-                                whiteSpace: 'pre-wrap',
-                                lineHeight: '1.5'
-                            }}>
-                                [System] {status.toUpperCase()}
-                                <br />[Socket] {socket?.connected ? 'ONLINE' : 'OFFLINE'}
-                                <br />[Instance] {instanceName}
-                                <br />[Last Response] {debugInfo.lastResponse || 'None'}
+                            <summary style={{ color: '#86868b', fontSize: '11px', fontWeight: 'bold' }}>DETALHES TÉCNICOS</summary>
+                            <div style={{ marginTop: '15px', padding: '15px', background: '#F9F9FA', borderRadius: '12px', fontSize: '11px', color: '#4a4a4c', fontFamily: 'monospace' }}>
+                                STATUS: {status.toUpperCase()}<br />
+                                SOCKET: {socket?.connected ? 'ONLINE' : 'OFFLINE'}<br />
+                                INSTANCE: {instanceName}<br />
+                                LOG: {debugInfo.lastResponse || 'None'}
                             </div>
                         </details>
                     </div>

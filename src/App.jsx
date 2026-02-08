@@ -122,7 +122,7 @@ const App = () => {
           currentView === 'crm' ? <CRMView /> :
             currentView === 'history' ? <ChatArea isArchived={true} /> : (
               <div className="history-placeholder glass-panel" style={{ flex: 1, margin: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <h2 style={{ color: 'white', opacity: 0.5 }}>Selecione uma conversa arquivada</h2>
+                <h2 style={{ color: '#86868b', opacity: 0.5 }}>Selecione uma conversa arquivada</h2>
               </div>
             )}
       </main>

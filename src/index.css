@@ -1,20 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg-main: #F5F5F7;
-  --bg-sidebar: #111111;
-  --bg-chat-list: #1a1a1c;
+  --bg-main: #FDFDFD;
+  --bg-sidebar: #FFFFFF;
+  --bg-chat-list: #FFFFFF;
   --accent-primary: #C5A059;
   --accent-secondary: #af8a43;
   --text-main: #1d1d1f;
-  --text-muted: #6e6e73;
-  --glass: rgba(255, 255, 255, 0.7);
+  --text-muted: #86868b;
+  --glass: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(0, 0, 0, 0.05);
   --danger: #ff4d4d;
   --success: #C5A059;
   --aura-gold: #C5A059;
   --card-bg: #ffffff;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
 * {
   box-sizing: border-box;
@@ -105,7 +105,7 @@ input:focus {
   box-shadow: 0 0 10px rgba(197, 160, 89, 0.1);
 }
 
-/* Sidebar Styles (Dark Inverted) */
+/* Sidebar Styles (Light Premium) */
 .sidebar {
   width: 100px;
   display: flex;
@@ -113,7 +113,7 @@ input:focus {
   align-items: center;
   padding: 30px 0;
   height: 100%;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--glass-border);
   background: var(--bg-sidebar);
   transition: width 0.3s ease;
 }
@@ -125,11 +125,10 @@ input:focus {
 .logo-container h1 {
   font-size: 22px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--accent-primary);
   margin-bottom: 50px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  text-shadow: 0 0 10px rgba(197, 160, 89, 0.3);
 }
 
 .sidebar ul {
@@ -140,7 +139,8 @@ input:focus {
 }
 
 .sidebar li {
-  color: rgba(255, 255, 255, 0.3);
+  color: #1d1d1f;
+  opacity: 0.4;
   padding: 12px;
   border-radius: 16px;
   cursor: pointer;
@@ -150,7 +150,8 @@ input:focus {
 .sidebar li:hover,
 .sidebar li.active {
   color: var(--accent-primary);
-  background: rgba(255, 255, 255, 0.05);
+  opacity: 1;
+  background: rgba(197, 160, 89, 0.08);
 }
 
 .sidebar-footer {
@@ -380,8 +381,8 @@ input:focus {
 
 .message.out {
   align-self: flex-end;
-  background: #ededef;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: #F1E9D6;
+  border: 1px solid rgba(197, 160, 89, 0.1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   color: var(--text-main);
 }
@@ -466,11 +467,11 @@ input:focus {
   filter: drop-shadow(0 0 10px rgba(197, 160, 89, 0.5));
 }
 
-/* ConfigModal Styles */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -482,7 +483,7 @@ input:focus {
   padding: 40px;
   border-radius: 36px;
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   gap: 30px;
@@ -803,12 +804,12 @@ input:focus {
   color: white;
 }
 
-/* CRM Kanban Styles - AURA Theme */
+/* CRM Kanban Styles - BRIGHT PREMIUM */
 .crm-container {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 20px;
+  padding: 30px;
   background: var(--bg-main);
   overflow: hidden;
 }
@@ -817,208 +818,94 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 25px;
-  background: var(--bg-chat-list);
-  border-radius: 12px;
-  border: 1px solid rgba(197, 160, 89, 0.2);
-}
-
-.crm-header h1 {
-  color: var(--aura-gold);
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.crm-header p {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin: 5px 0 0 0;
-}
-
-.crm-stats {
-  display: flex;
-  gap: 40px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.stat-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 6px;
-  font-weight: 600;
+  margin-bottom: 30px;
+  padding: 0;
+  background: transparent;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  color: var(--aura-gold);
-  text-shadow: 0 0 20px rgba(197, 160, 89, 0.3);
+  color: #1d1d1f;
 }
 
 .crm-board {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 10px 0;
+  padding: 10px 0 20px;
   flex: 1;
 }
 
 .crm-column {
-  min-width: 300px;
-  max-width: 300px;
-  background: var(--bg-chat-list);
-  border-radius: 12px;
+  min-width: 320px;
+  max-width: 320px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
-  height: fit-content;
-  max-height: calc(100vh - 200px);
-  border: 1px solid rgba(197, 160, 89, 0.15);
+  height: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 2px solid rgba(197, 160, 89, 0.2);
-  font-weight: 700;
-  font-size: 14px;
-  color: #ffffff;
-}
-
-.column-header .count {
-  background: var(--aura-gold);
-  color: #111111;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 20px 25px;
   font-weight: 800;
-  min-width: 24px;
-  text-align: center;
-}
-
-.column-body {
-  padding: 12px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.column-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.column-body::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-}
-
-.column-body::-webkit-scrollbar-thumb {
-  background: var(--aura-gold);
-  border-radius: 10px;
+  font-size: 14px;
+  color: #1d1d1f;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .crm-card {
-  background: linear-gradient(135deg, #1a1a1c 0%, #252527 100%);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 10px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 15px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(197, 160, 89, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .crm-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.3);
-  border-color: var(--aura-gold);
-}
-
-.crm-card:active {
-  transform: translateY(-1px);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(197, 160, 89, 0.1);
+  border-color: var(--accent-primary);
 }
 
 .crm-card h4 {
-  color: var(--aura-gold);
+  color: #1d1d1f;
   font-size: 15px;
   font-weight: 700;
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
 }
 
 .crm-card p {
-  color: #9ca3af;
+  color: #86868b;
   font-size: 13px;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .crm-card .next-steps {
-  background: rgba(197, 160, 89, 0.1);
-  border-left: 3px solid var(--aura-gold);
-  padding: 10px;
-  border-radius: 6px;
-  margin: 10px 0;
+  background: #FDFCF8;
+  border-left: 3px solid var(--accent-primary);
+  padding: 15px;
+  border-radius: 12px;
+  margin: 15px 0;
 }
 
 .crm-card .next-steps h5 {
-  color: var(--aura-gold);
-  font-size: 12px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin-bottom: 8px;
 }
 
 .crm-card .next-steps ul {
-  margin: 0;
-  padding-left: 18px;
-  color: #d1d5db;
-  font-size: 12px;
-}
-
-.crm-card .next-steps li {
-  margin-bottom: 4px;
-}
-
-.crm-card .card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.crm-card button {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--aura-gold);
-  background: transparent;
-  color: var(--aura-gold);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.crm-card button:hover {
-  background: var(--aura-gold);
-  color: #111111;
-}
-
-.crm-card button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  padding-left: 20px;
+  color: #4a4a4c;
+  font-size: 13px;
 }
