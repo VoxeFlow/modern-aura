@@ -121,13 +121,17 @@ const App = () => {
       />
       {currentView === 'history' ? <HistoryView /> : currentView === 'crm' ? null : <ChatList onOpenMenu={() => setIsMobileMenuOpen(true)} />}
       <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
-        {currentView === 'dashboard' ? <ChatArea /> :
-          currentView === 'crm' ? <CRMView /> :
-            currentView === 'history' ? <ChatArea isArchived={true} /> : (
-              <div className="history-placeholder glass-panel" style={{ flex: 1, margin: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <h2 style={{ color: '#86868b', opacity: 0.5 }}>Selecione uma conversa arquivada</h2>
-              </div>
-            )}
+        {activeChat ? (
+          <ChatArea isArchived={currentView === 'history'} />
+        ) : currentView === 'crm' ? (
+          <CRMView />
+        ) : (
+          <div className="history-placeholder glass-panel" style={{ flex: 1, margin: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 style={{ color: '#86868b', opacity: 0.5 }}>
+              {currentView === 'history' ? 'Selecione uma conversa arquivada' : 'Selecione uma conversa para iniciar'}
+            </h2>
+          </div>
+        )}
       </main>
       <ConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)} />
       <ConnectModal isOpen={isConnectOpen} onClose={() => setIsConnectOpen(false)} />

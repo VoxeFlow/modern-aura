@@ -2,15 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Zap, Bot, Send, Check, BarChart3, Target, Wand2, Paperclip, Mic, Image, FileText, Camera, Tag, Archive, ChevronLeft } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
-import { formatJid } from '../utils/formatter';
+import { formatJid } '../utils/formatter';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 
 const ChatArea = ({ isArchived = false }) => {
     const { activeChat, messages, setMessages, clearMessages, briefing, setActiveChat } = useStore();
 
-    // GUARD CLAUSE: If no chat is active, don't render anything (or render placeholder)
-    if (!activeChat && !isArchived) return null;
+    // GUARD CLAUSE: If no chat is active, don't render anything
+    if (!activeChat) return null;
 
     const [loading, setLoading] = useState(false);
     const [suggestion, setSuggestion] = useState('');
