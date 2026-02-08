@@ -71,8 +71,8 @@ const ChatArea = ({ isArchived = false }) => {
             const isNumeric = /^\d+$/.test(rawName.replace(/\D/g, ''));
             const clientName = (isNumeric || rawName.includes('@') || !rawName) ? "Cliente" : rawName;
 
-            const historyText = messages.slice(-10).map(m => {
-                const isMe = m.key?.fromMe || m.fromMe; // Compatibility for both structures
+            const historyText = messages.slice(-15).map(m => {
+                const isMe = m.key?.fromMe || m.fromMe;
                 const msg = m.message || {};
                 const text = msg.conversation ||
                     msg.extendedTextMessage?.text ||
