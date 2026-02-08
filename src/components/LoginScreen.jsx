@@ -91,7 +91,8 @@ export default function LoginScreen({ onLogin }) {
                 </form>
 
                 <div className="login-footer">
-                    <p>🔒 Acesso protegido</p>
+                    <p>Protected by VoxeFlow Security</p>
+                    <p style={{ fontSize: '10px', opacity: 0.5, marginTop: '5px' }}>v{import.meta.env.PACKAGE_VERSION || '1.0.1'}</p>
                 </div>
             </div>
         </div>

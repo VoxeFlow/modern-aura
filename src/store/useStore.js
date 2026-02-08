@@ -67,6 +67,22 @@ export const useStore = create(
             setIsConnected: (isConnected) => set({ isConnected }),
             setCurrentView: (view) => set({ currentView: view }),
 
+            // ACTION: Logout and Clear State
+            logout: () => {
+                console.log('AURA: Logging out and clearing data...');
+                set({
+                    isConnected: false,
+                    chats: [],
+                    messages: [],
+                    activeChat: null,
+                    lastFetchedJid: null,
+                    chatTags: {}, // Optional: keep tags or clear? Better clear for privacy.
+                    chatNextSteps: {}
+                });
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('aura-storage'); // Nuke state persistence
+            },
+
             // CRM Actions
             setTag: (chatId, tagId) => set(state => ({
                 chatTags: { ...state.chatTags, [chatId]: tagId }

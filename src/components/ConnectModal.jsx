@@ -146,7 +146,15 @@ const ConnectModal = ({ isOpen, onClose }) => {
     const handleLogout = async () => {
         if (!window.confirm("Deseja realmente desconectar o WhatsApp?")) return;
         setLoading(true);
-        await WhatsAppService.logoutInstance();
+        try {
+            await WhatsAppService.logoutInstance();
+        } catch (e) {
+            console.error("Logout failed:", e);
+        }
+
+        // Critical: Clear local state
+        useStore.getState().logout();
+
         await checkStatus();
         setLoading(false);
     };
