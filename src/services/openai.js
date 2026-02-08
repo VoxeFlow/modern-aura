@@ -256,9 +256,44 @@ ESTILO: Amigável, profissional e focado em eficiência.
             });
 
             const data = await response.json();
-            return data.choices?.[0]?.message?.content?.trim() || "Algum outro detalhe?";
+            return data.choices?.[0]?.message?.content?.trim() || "Algum outro detalhe importante?";
         } catch (e) {
             return "Algum outro detalhe importante?";
+        }
+    }
+
+    async analyzeKnowledgePoint(question, answer) {
+        const openaiKey = MASTER_AI_KEY;
+        if (!openaiKey) return "Analise não disponível.";
+
+        const systemPrompt = `
+Você é o Estrategista de Vendas da AURA. Sua missão é analisar um ponto específico do conhecimento de uma empresa e dizer POR QUE isso é importante para vender e como a IA deve usar isso.
+
+REGRAS:
+1. Resposta CURTA (máximo 2 linhas).
+2. Use tom de consultoria.
+3. Foque em CONVERSÃO.
+        `.trim();
+
+        try {
+            const response = await fetch('/api/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: `Pergunta: ${question}\nResposta: ${answer}\n\nGere uma análise estratégica curta.` }
+                    ],
+                    temperature: 0.5,
+                    max_tokens: 100
+                })
+            });
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content?.trim() || "Ponto estratégico validado.";
+        } catch (e) {
+            return "Ponto estratégico salvo com sucesso.";
         }
     }
 }

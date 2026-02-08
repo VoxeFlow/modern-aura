@@ -11,6 +11,7 @@ export const useStore = create(
             apiKey: import.meta.env.VITE_API_KEY || 'Beatriz@CB650',
             instanceName: import.meta.env.VITE_INSTANCE_NAME || 'VoxeFlow',
             briefing: '', // V7: Start empty to trigger interactive briefing
+            knowledgeBase: [], // v1.2.3: Structured Q&A for the Knowledge Dashboard
             ragSources: [
                 { id: 1, name: 'Tabela de Preços - Invisalign', keywords: ['preço', 'valor', 'quanto', 'invisalign'], content: 'O Invisalign Lite começa em R$ 8.000. O Full em R$ 12.000. Parcelamos em 12x sem juros.' },
                 { id: 2, name: 'Protocolo Ortodontia', keywords: ['aparelho', 'ferrinho', 'orto', 'manutenção'], content: 'Manutenção mensal de R$ 150. Documentação ortodôntica inclusa no fechamento.' },
@@ -88,6 +89,8 @@ export const useStore = create(
                 chatTags: { ...state.chatTags, [chatId]: tagId }
             })),
 
+            setKnowledgeBase: (knowledgeBase) => set({ knowledgeBase }),
+
             setNextSteps: (chatId, data) => set(state => ({
                 chatNextSteps: { ...state.chatNextSteps, [chatId]: data }
             })),
@@ -108,6 +111,7 @@ export const useStore = create(
                 apiKey: state.apiKey,
                 instanceName: state.instanceName,
                 briefing: state.briefing,
+                knowledgeBase: state.knowledgeBase,
                 ragSources: state.ragSources,
                 currentView: state.currentView,
                 chats: state.chats,

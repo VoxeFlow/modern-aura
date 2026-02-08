@@ -1,150 +1,237 @@
-import React, { useState } from 'react';
-import { X, ArrowRight, Save, Sparkles, Brain } from 'lucide-react';
+```javascript
+import React, { useState, useEffect } from 'react';
+import { X, ArrowRight, Save, Sparkles, Brain, Edit2, Check, RefreshCw, Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 const BriefingModal = ({ isOpen, onClose }) => {
-    const { briefing, setConfig } = useStore();
-    const [status, setStatus] = useState('idle'); // idle, asking, thinking, finished
+    const { briefing, knowledgeBase, setConfig, setKnowledgeBase } = useStore();
+    const [view, setView] = useState('dashboard'); // interview, dashboard
+    const [status, setStatus] = useState('idle');
     const [currentQuestion, setCurrentQuestion] = useState("Para começarmos: Qual o nome da sua empresa e o que exatamente vocês fazem?");
     const [currentAnswer, setCurrentAnswer] = useState("");
-    const [history, setHistory] = useState([]); // Array of { q, a }
-    const [isSaving, setIsSaving] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [tempAnswer, setTempAnswer] = useState("");
+
+    // Initialize view based on data presence
+    useEffect(() => {
+        if (isOpen && knowledgeBase.length === 0) {
+            setView('interview');
+        } else {
+            setView('dashboard');
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
-    const handleNext = async () => {
+    const handleNextInterview = async () => {
         if (!currentAnswer.trim()) return;
 
-        const newHistory = [...history, { q: currentQuestion, a: currentAnswer }];
-        setHistory(newHistory);
-        setCurrentAnswer("");
         setStatus('thinking');
-
         try {
             const { default: OpenAIService } = await import('../services/openai');
-            const nextQ = await OpenAIService.generateNextBriefingQuestion(newHistory);
+            
+            // 1. Generate strategic analysis for this point
+            const analysis = await OpenAIService.analyzeKnowledgePoint(currentQuestion, currentAnswer);
+            
+            const newItem = {
+                id: Date.now(),
+                q: currentQuestion,
+                a: currentAnswer,
+                analysis
+            };
 
-            if (nextQ.includes("COMPLETE") || newHistory.length >= 10) {
-                setStatus('finished');
+            const newKB = [...knowledgeBase, newItem];
+            setKnowledgeBase(newKB);
+            setCurrentAnswer("");
+
+            // 2. Decide next question
+            const nextQ = await OpenAIService.generateNextBriefingQuestion(newKB);
+
+            if (nextQ.includes("COMPLETE") || newKB.length >= 10) {
+                setStatus('idle');
+                setView('dashboard');
+                syncBriefingText(newKB);
             } else {
                 setCurrentQuestion(nextQ);
                 setStatus('idle');
             }
         } catch (e) {
-            console.error("AURA: Erro ao gerar próxima pergunta", e);
-            setStatus('finished');
+            console.error("AURA: Error in interview step", e);
+            setStatus('idle');
         }
     };
 
-    const handleFinish = () => {
-        setIsSaving(true);
-        // Map history to a structured string that AI can parse easily
-        const knowledgeBase = history.map(h => `PERGUNTA: ${h.q}\nRESPOSTA: ${h.a}`).join('\n\n');
+    const syncBriefingText = (kb) => {
+        const text = kb.map(h => `[P]: ${ h.q } \n[R]: ${ h.a } `).join('\n\n');
+        setConfig({ briefing: text });
+    };
 
-        setConfig({ briefing: knowledgeBase });
-        setIsSaving(false);
-        onClose();
+    const handleUpdatePoint = async (id) => {
+        const point = knowledgeBase.find(k => k.id === id);
+        if (!point) return;
+
+        setStatus('thinking');
+        try {
+            const { default: OpenAIService } = await import('../services/openai');
+            const analysis = await OpenAIService.analyzeKnowledgePoint(point.q, tempAnswer);
+            
+            const newKB = knowledgeBase.map(item => 
+                item.id === id ? { ...item, a: tempAnswer, analysis } : item
+            );
+            
+            setKnowledgeBase(newKB);
+            syncBriefingText(newKB);
+            setEditingId(null);
+            setStatus('idle');
+        } catch (e) {
+            setStatus('idle');
+        }
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="modal-content glass-panel" style={{ width: '90%', maxWidth: '650px', padding: '0', maxHeight: '90vh', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', zIndex: 1000 }}>
+            <div className="modal-content glass-panel" style={{ width: '95%', maxWidth: '800px', padding: '0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+                
+                {/* Header */}
                 <div className="briefing-header" style={{
-                    padding: '30px',
-                    background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                    padding: '25px 35px',
+                    background: 'linear-gradient(135deg, #1a1a1a, #000000)',
                     borderBottom: '1px solid var(--glass-border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px' }}>
-                                <Brain size={32} color="white" />
-                            </div>
-                            <div>
-                                <h2 style={{ color: 'white', margin: 0 }}>Arquiteto de IA Aura</h2>
-                                <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '13px' }}>Construindo o cérebro personalizado do seu negócio</p>
-                            </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ padding: '10px', background: 'rgba(197, 160, 89, 0.2)', borderRadius: '12px', border: '1px solid rgba(197, 160, 89, 0.3)' }}>
+                            <Brain size={30} color="var(--accent-primary)" />
                         </div>
-                        <X size={24} color="white" onClick={onClose} style={{ cursor: 'pointer' }} />
+                        <div>
+                            <h2 style={{ color: 'white', margin: 0, fontSize: '20px' }}>Dashboard de Inteligência Aura</h2>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: '12px' }}>Gestão estratégica do conhecimento do seu negócio</p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        {view === 'dashboard' && (
+                            <button 
+                                onClick={() => setView('interview')}
+                                style={{ background: 'rgba(197, 160, 89, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            >
+                                <Plus size={16} /> Alimentar IA
+                            </button>
+                        )}
+                        <X size={24} color="rgba(255,255,255,0.5)" onClick={onClose} style={{ cursor: 'pointer' }} />
                     </div>
                 </div>
 
-                <div className="briefing-body" style={{ padding: '40px' }}>
-
-                    {status === 'finished' ? (
-                        <div style={{ textAlign: 'center', padding: '20px' }}>
-                            <div style={{ width: '80px', height: '80px', background: 'rgba(197, 160, 89, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                                <Sparkles size={40} color="var(--accent-primary)" />
-                            </div>
-                            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Inteligência Mapeada!</h3>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>
-                                Já tenho detalhes suficientes para transformar seu atendimento em uma máquina de vendas.
-                                Explore as respostas sugeridas e veja a mágica acontecer.
-                            </p>
-                            <button className="btn-primary" onClick={handleFinish} style={{ width: '100%', padding: '15px' }}>
-                                Começar Agora <ArrowRight size={18} />
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="question-area" style={{ minHeight: '180px' }}>
-                                <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px' }}>
-                                    Entrevista em andamento • {history.length + 1}ª Pergunta
+                {/* Content Area */}
+                <div className="briefing-body" style={{ padding: '35px', overflowY: 'auto', flex: 1, background: 'rgba(255,255,255,0.02)' }}>
+                    
+                    {view === 'interview' ? (
+                        <div className="interview-flow">
+                            <div className="question-area" style={{ minHeight: '200px' }}>
+                                <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', display: 'block', marginBottom: '10px' }}>
+                                    Entrevista Aura • Inteligência Adaptativa
                                 </span>
-                                <h3 style={{ margin: '15px 0 25px 0', fontSize: '20px', lineHeight: '1.4' }}>
-                                    {status === 'thinking' ? "Processando informações..." : currentQuestion}
+                                <h3 style={{ margin: '0 0 30px 0', fontSize: '22px', color: 'white', lineHeight: '1.4' }}>
+                                    {status === 'thinking' ? "Aura está processando..." : currentQuestion}
                                 </h3>
 
                                 <textarea
                                     autoFocus
                                     value={currentAnswer}
                                     onChange={(e) => setCurrentAnswer(e.target.value)}
-                                    placeholder="Responda aqui com detalhes..."
+                                    placeholder="Explique com detalhes para que a IA aprenda..."
                                     disabled={status === 'thinking'}
                                     style={{
                                         width: '100%',
-                                        background: '#ffffff',
-                                        border: '1px solid rgba(0, 0, 0, 0.1)',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid var(--glass-border)',
                                         borderRadius: '16px',
                                         padding: '20px',
-                                        color: 'var(--text-main)',
+                                        color: 'white',
                                         fontSize: '16px',
-                                        minHeight: '130px',
+                                        minHeight: '150px',
                                         outline: 'none',
                                         resize: 'none',
                                         opacity: status === 'thinking' ? 0.5 : 1,
                                         transition: 'all 0.3s'
                                     }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleNext();
-                                        }
-                                    }}
                                 />
-                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Pressione Enter para enviar • Shift+Enter para nova linha</p>
                             </div>
 
-                            <div className="briefing-footer" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px', gap: '15px' }}>
-                                {history.length > 2 && (
-                                    <button
-                                        className="btn-secondary"
-                                        onClick={() => setStatus('finished')}
-                                        style={{ padding: '12px 20px', fontSize: '13px' }}
-                                    >
-                                        Finalizar com o que já sei
-                                    </button>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px', gap: '15px' }}>
+                                {knowledgeBase.length > 0 && (
+                                    <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ padding: '12px 25px' }}>Ir para o Dashboard</button>
                                 )}
                                 <button
                                     className="btn-primary"
-                                    onClick={handleNext}
+                                    onClick={handleNextInterview}
                                     disabled={!currentAnswer.trim() || status === 'thinking'}
-                                    style={{ padding: '12px 30px' }}
+                                    style={{ padding: '12px 40px', background: 'var(--accent-primary)', color: 'black', fontWeight: 'bold' }}
                                 >
-                                    {status === 'thinking' ? 'Analisando...' : 'Próxima'} <ArrowRight size={18} />
+                                    {status === 'thinking' ? <RefreshCw className="spin" size={20} /> : 'Próxima Passo'} <ArrowRight size={18} />
                                 </button>
                             </div>
-                        </>
+                        </div>
+                    ) : (
+                        <div className="knowledge-dashboard">
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+                                {knowledgeBase.map((point) => (
+                                    <div key={point.id} className="knowledge-card glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '15px', position: 'relative', transition: 'transform 0.2s' }}>
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <label style={{ fontSize: '10px', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Questão Estratégica</label>
+                                            <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>{point.q}</p>
+                                        </div>
+
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Resposta do Negócio</label>
+                                                {editingId === point.id ? (
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <Check size={16} color="#4ade80" style={{ cursor: 'pointer' }} onClick={() => handleUpdatePoint(point.id)} />
+                                                        <X size={16} color="#f87171" style={{ cursor: 'pointer' }} onClick={() => setEditingId(null)} />
+                                                    </div>
+                                                ) : (
+                                                    <Edit2 size={14} color="rgba(255,255,255,0.3)" style={{ cursor: 'pointer' }} onClick={() => {
+                                                        setEditingId(point.id);
+                                                        setTempAnswer(point.a);
+                                                    }} />
+                                                )}
+                                            </div>
+                                            
+                                            {editingId === point.id ? (
+                                                <textarea 
+                                                    autoFocus
+                                                    value={tempAnswer}
+                                                    onChange={e => setTempAnswer(e.target.value)}
+                                                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--accent-primary)', borderRadius: '8px', color: 'white', padding: '10px', marginTop: '5px', fontSize: '13px', minHeight: '80px', resize: 'none' }}
+                                                />
+                                            ) : (
+                                                <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.7)', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{point.a}</p>
+                                            )}
+                                        </div>
+
+                                        {point.analysis && (
+                                            <div style={{ padding: '12px', background: 'rgba(197, 160, 89, 0.05)', borderRadius: '10px', borderLeft: '3px solid var(--accent-primary)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                                                    <Sparkles size={12} color="var(--accent-primary)" />
+                                                    <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--accent-primary)' }}>ANÁLISE DA IA</span>
+                                                </div>
+                                                <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', lineHeight: '1.4' }}>{point.analysis}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'center' }}>
+                                <button onClick={onClose} className="btn-primary" style={{ padding: '15px 60px', borderRadius: '12px', fontSize: '14px', background: 'linear-gradient(to right, #c5a059, #8a6d3a)', color: 'white' }}>
+                                    Salvar e Aplicar Conhecimento
+                                </button>
+                            </div>
+                        </div>
                     )}
+
                 </div>
             </div>
         </div>

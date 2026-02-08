@@ -30,22 +30,32 @@ const ConfigModal = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="input-group" style={{ marginTop: '15px' }}>
-                        <label>Briefing do Negócio (Core Knowledge)</label>
-                        <textarea
-                            name="briefing"
-                            defaultValue={briefing}
-                            rows={5}
-                            style={{
-                                background: 'rgba(0,0,0,0.2)',
-                                border: '1px solid var(--glass-border)',
-                                color: 'white',
-                                padding: '10px',
-                                borderRadius: '8px',
-                                resize: 'vertical',
-                                fontSize: '12px',
-                                lineHeight: '1.4'
-                            }}
-                        />
+                        <label>Briefing do Negócio (Knowledge Base)</label>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            textAlign: 'center'
+                        }}>
+                            <Brain size={32} color="var(--accent-primary)" style={{ marginBottom: '10px', opacity: 0.8 }} />
+                            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '15px' }}>
+                                O conhecimento da sua IA agora é gerido de forma estratégica e estruturada.
+                            </p>
+                            <button
+                                type="button"
+                                className="btn-primary"
+                                onClick={() => {
+                                    onClose(); // Close config
+                                    // The Sidebar/App handles opening BriefingModal via store or state
+                                    // For now, we manually trigger the store if needed or just tell the user
+                                    window.dispatchEvent(new CustomEvent('open-briefing'));
+                                }}
+                                style={{ padding: '8px 20px', fontSize: '12px', borderRadius: '8px' }}
+                            >
+                                Gerir Inteligência do Cérebro
+                            </button>
+                        </div>
                     </div>
 
                     <div className="input-group" style={{ marginTop: '15px' }}>
