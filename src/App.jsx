@@ -108,6 +108,11 @@ const App = () => {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }
 
+  // State Synchronization: Clear active chat when switching views to prevent "ghosts"
+  useEffect(() => {
+    setActiveChat(null);
+  }, [currentView, setActiveChat]);
+
   // MAIN APP: User is authenticated
   return (
     <div className="app-container">
@@ -119,12 +124,17 @@ const App = () => {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
       />
-      {currentView === 'history' ? <HistoryView /> : currentView === 'crm' ? null : <ChatList onOpenMenu={() => setIsMobileMenuOpen(true)} />}
+
+      {/* CENTRAL COLUMN: Selective rendering based on view */}
+      {currentView === 'history' && <HistoryView />}
+      {currentView === 'dashboard' && <ChatList onOpenMenu={() => setIsMobileMenuOpen(true)} />}
+      {/* CRM view is full-width, middle column is purposely excluded */}
+
       <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
-        {activeChat ? (
-          <ChatArea isArchived={currentView === 'history'} />
-        ) : currentView === 'crm' ? (
+        {currentView === 'crm' ? (
           <CRMView />
+        ) : activeChat ? (
+          <ChatArea isArchived={currentView === 'history'} onBack={() => setActiveChat(null)} />
         ) : (
           <div className="history-placeholder glass-panel" style={{ flex: 1, margin: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <h2 style={{ color: '#86868b', opacity: 0.5 }}>
@@ -133,6 +143,7 @@ const App = () => {
           </div>
         )}
       </main>
+
       <ConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)} />
       <ConnectModal isOpen={isConnectOpen} onClose={() => setIsConnectOpen(false)} />
       <BriefingModal isOpen={isBriefingOpen} onClose={() => setIsBriefingOpen(false)} />

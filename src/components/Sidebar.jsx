@@ -2,7 +2,7 @@ import { LayoutDashboard, History, Settings, LogOut, Link2, Brain, Kanban, X } f
 import { useStore } from '../store/useStore';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
-    const { activeChat, currentView, setCurrentView } = useStore();
+    const { activeChat, currentView, setCurrentView, setActiveChat } = useStore();
     return (
         <>
             {/* Mobile Overlay */}
@@ -18,13 +18,13 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
 
                 <nav id="mainNav">
                     <ul>
-                        <li className={currentView === 'dashboard' ? 'active' : ''} onClick={() => setCurrentView('dashboard')} title="Dashboard">
+                        <li className={currentView === 'dashboard' ? 'active' : ''} onClick={() => { setCurrentView('dashboard'); setActiveChat(null); }} title="Dashboard">
                             <LayoutDashboard size={24} />
                         </li>
-                        <li className={currentView === 'crm' ? 'active' : ''} onClick={() => setCurrentView('crm')} title="CRM Pipeline">
+                        <li className={currentView === 'crm' ? 'active' : ''} onClick={() => { setCurrentView('crm'); setActiveChat(null); }} title="CRM Pipeline">
                             <Kanban size={24} />
                         </li>
-                        <li className={currentView === 'history' ? 'active' : ''} onClick={() => setCurrentView('history')} title="Histórico">
+                        <li className={currentView === 'history' ? 'active' : ''} onClick={() => { setCurrentView('history'); setActiveChat(null); }} title="Histórico">
                             <History size={24} />
                         </li>
                     </ul>

@@ -6,7 +6,7 @@ import { formatJid } from '../utils/formatter';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 
-const ChatArea = ({ isArchived = false }) => {
+const ChatArea = ({ isArchived = false, onBack }) => {
     const { activeChat, messages, setMessages, clearMessages, briefing, setActiveChat } = useStore();
 
     // GUARD CLAUSE: If no chat is active, don't render anything
@@ -19,6 +19,7 @@ const ChatArea = ({ isArchived = false }) => {
     const [sending, setSending] = useState(false);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [isAnalysisOpen, setIsAnalysisOpen] = useState(false); // Mobile Analysis Overlay state
 
     // DIALOG SYSTEM STATE
     const [dialog, setDialog] = useState({ isOpen: false, type: '', title: '', message: '', onConfirm: null, inputPlaceholder: '' });
@@ -44,18 +45,24 @@ const ChatArea = ({ isArchived = false }) => {
     };
 
     const messagesEndRef = useRef(null);
+    const isFirstLoadRef = useRef(true); // Track if it's the first render for this chat
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = (behavior = "smooth") => {
+        messagesEndRef.current?.scrollIntoView({ behavior });
     };
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages, activeChat?.id]);
+        // Strictly only scroll to bottom on initial chat load
+        if (isFirstLoadRef.current && messages.length > 0) {
+            scrollToBottom("auto");
+            isFirstLoadRef.current = false;
+        }
+    }, [messages]);
 
     useEffect(() => {
         const jid = activeChat?.id;
         activeJidRef.current = jid;
+        isFirstLoadRef.current = true; // Reset for new chat selection
 
         clearMessages();
         setSuggestion('');
@@ -441,78 +448,125 @@ const ChatArea = ({ isArchived = false }) => {
                 </div>
             )}
 
+            {/* MOBILE ANALYSIS OVERLAY */}
+            {isAnalysisOpen && (
+                <div className="sidebar-overlay open" onClick={() => setIsAnalysisOpen(false)} style={{ zIndex: 2000 }}>
+                    <div
+                        className="glass-panel"
+                        style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            width: '100%',
+                            maxHeight: '80vh',
+                            borderTopLeftRadius: '25px',
+                            borderTopRightRadius: '25px',
+                            padding: '30px 20px',
+                            overflowY: 'auto'
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div style={{ width: '40px', height: '5px', background: '#ccc', borderRadius: '5px', margin: '0 auto 20px auto' }} onClick={() => setIsAnalysisOpen(false)} />
+                        <h2 style={{ marginBottom: '20px', fontSize: '20px', textAlign: 'center' }}>Análise Estratégica</h2>
+
+                        {analysisData.level ? (
+                            <div className="analysis-content">
+                                <div style={{ marginBottom: '15px', background: 'rgba(0,0,0,0.03)', padding: '15px', borderRadius: '12px' }}>
+                                    <h4 style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>Nível de Consciência</h4>
+                                    <p style={{ fontSize: '15px', lineHeight: '1.4' }}>{analysisData.level}</p>
+                                </div>
+                                <div style={{ marginBottom: '15px', background: 'rgba(0,0,0,0.03)', padding: '15px', borderRadius: '12px' }}>
+                                    <h4 style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>Intenção do Lead</h4>
+                                    <p style={{ fontSize: '15px', lineHeight: '1.4' }}>{analysisData.intent}</p>
+                                </div>
+                                <div style={{ background: 'rgba(0,0,0,0.03)', padding: '15px', borderRadius: '12px' }}>
+                                    <h4 style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>Estratégia Recomendada</h4>
+                                    <p style={{ fontSize: '15px', lineHeight: '1.4' }}>{analysisData.strategy}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>
+                                <Bot size={40} style={{ marginBottom: '10px' }} />
+                                <p>Nenhuma análise disponível.<br />Clique em "Analisar Conversa" abaixo.</p>
+                            </div>
+                        )}
+
+                        <button
+                            className="btn-primary v3-btn"
+                            onClick={() => { handleAnalyze(); setIsAnalysisOpen(false); }}
+                            style={{ width: '100%', marginTop: '30px', height: '54px', borderRadius: '16px', fontWeight: 'bold' }}
+                        >
+                            <Wand2 size={20} /> Analisar agora
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <header className="chat-header glass-panel">
-                <div className="active-info">
+                <div className="active-info" style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                             className="mobile-back-btn"
-                            onClick={() => setActiveChat(null)}
+                            onClick={onBack}
                             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'none', marginRight: '5px' }}
                         >
-                            <ChevronLeft size={24} color="#1d1d1f" />
+                            <ChevronLeft size={24} color="var(--accent-primary)" />
                         </button>
                         <h3 style={{ margin: 0 }}>{activeChat.name && activeChat.name !== formatJid(activeChat.id) ? activeChat.name : formatJid(activeChat.id)}</h3>
-                        <span className="badge-v3">v7 Sales Engine</span>
-                        {isArchived && (
-                            <span style={{
-                                fontSize: '11px',
-                                padding: '4px 8px',
-                                background: 'rgba(251, 191, 36, 0.2)',
-                                color: '#fbbf24',
-                                borderRadius: '6px',
-                                fontWeight: '600'
-                            }}>
-                                ARQUIVADO
-                            </span>
-                        )}
                     </div>
                 </div>
-                <div className="header-actions" style={{ display: 'flex', gap: '15px' }}>
-                    {isArchived && (
+                <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <button
+                        className="mobile-analysis-btn"
+                        onClick={() => setIsAnalysisOpen(true)}
+                        style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'none', cursor: 'pointer' }}
+                    >
+                        <Wand2 size={24} />
+                    </button>
+                    {isArchived ? (
                         <button
                             className="icon-btn"
-                            title="Desarquivar Conversa"
+                            title="Desarquivar"
                             onClick={() => {
                                 const archived = JSON.parse(localStorage.getItem('archived_chats') || '[]');
                                 const updated = archived.filter(id => id !== activeChat.id);
                                 localStorage.setItem('archived_chats', JSON.stringify(updated));
                                 window.dispatchEvent(new Event('storage'));
-                                alert('✅ Conversa desarquivada com sucesso!');
+                                alert('✅ Conversa desarquivada!');
                             }}
-                            style={{
-                                background: 'rgba(34, 197, 94, 0.2)',
-                                border: '1px solid #22c55e',
-                                color: '#22c55e',
-                                padding: '8px 16px',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}
+                            style={{ background: 'none', border: 'none', color: 'var(--success)', cursor: 'pointer' }}
                         >
-                            <Archive size={16} />
-                            Desarquivar
+                            <Archive size={20} />
                         </button>
+                    ) : (
+                        <>
+                            <button
+                                className="icon-btn"
+                                title="Etiquetar"
+                                onClick={() => { /* Tag logic */ }}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            >
+                                <Tag size={20} />
+                            </button>
+                            <button
+                                className="icon-btn"
+                                title="Arquivar"
+                                onClick={() => {
+                                    const archived = JSON.parse(localStorage.getItem('archived_chats') || '[]');
+                                    if (!archived.includes(activeChat.id)) {
+                                        archived.push(activeChat.id);
+                                        localStorage.setItem('archived_chats', JSON.stringify(archived));
+                                        window.dispatchEvent(new Event('storage'));
+                                        setActiveChat(null);
+                                        alert('✅ Conversa arquivada!');
+                                    }
+                                }}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            >
+                                <Archive size={20} />
+                            </button>
+                        </>
                     )}
-                    <button
-                        className="icon-btn"
-                        title="Etiquetar Conversa"
-                        onClick={handleTag}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >
-                        <Tag size={20} />
-                    </button>
-                    <button
-                        className="icon-btn"
-                        title="Arquivar Conversa"
-                        onClick={handleArchive}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >
-                        <Archive size={20} />
-                    </button>
                 </div>
             </header>
 
