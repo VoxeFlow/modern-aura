@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Zap, Bot, Send, Check, BarChart3, Target, Wand2, Paperclip, Mic, Image, FileText, Camera, Tag, Archive, ChevronLeft, X } from 'lucide-react';
+import { Zap, Bot, Send, Check, BarChart3, Target, Wand2, Paperclip, Mic, Image, FileText, Camera, Tag, Archive, ChevronLeft, X, Pencil } from 'lucide-react';
 // Note: Removed Box since I'll use standard div to avoid extra dependencies if not installed
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
