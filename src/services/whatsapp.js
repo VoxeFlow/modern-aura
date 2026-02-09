@@ -259,235 +259,234 @@ class WhatsAppService {
             return [];
         }
     }
-}
 
     async fetchMessages(jid, linkedJid = null) {
-    const { instanceName } = useStore.getState();
-    const cleanJid = this.standardizeJid(jid);
-    if (!instanceName || !cleanJid) return [];
+        const { instanceName } = useStore.getState();
+        const cleanJid = this.standardizeJid(jid);
+        if (!instanceName || !cleanJid) return [];
 
-    const tryFetch = async (targetJid) => {
-        if (!targetJid) return [];
-        try {
-            const data = await this.request(`/chat/findMessages/${instanceName}`, 'POST', {
-                where: {
-                    key: {
-                        remoteJid: targetJid
+        const tryFetch = async (targetJid) => {
+            if (!targetJid) return [];
+            try {
+                const data = await this.request(`/chat/findMessages/${instanceName}`, 'POST', {
+                    where: {
+                        key: {
+                            remoteJid: targetJid
+                        }
+                    },
+                    limit: 500 // Maximum limit to capture full history
+                });
+                const list = data?.messages?.records || data?.records || data?.messages || [];
+                return Array.isArray(list) ? list : [];
+            } catch (e) {
+                console.error(`Error fetching messages for ${targetJid}:`, e);
+                return [];
+            }
+        };
+
+        // 1. Fetch Main JID
+        let messages = await tryFetch(cleanJid);
+
+        // 2. Fetch Linked LID (if exists) - The "Missing Audio" Recovery
+        if (linkedJid) {
+            const lidMessages = await tryFetch(this.standardizeJid(linkedJid));
+            if (lidMessages.length > 0) {
+                // Merge and Deduplicate by Message Key ID
+                const seen = new Set(messages.map(m => m.key?.id));
+                lidMessages.forEach(m => {
+                    if (!seen.has(m.key?.id)) {
+                        messages.push(m);
                     }
-                },
-                limit: 500 // Maximum limit to capture full history
-            });
-            const list = data?.messages?.records || data?.records || data?.messages || [];
-            return Array.isArray(list) ? list : [];
+                });
+            }
+        }
+
+        // 3. Fallback: Brazilian 9-digit heuristic (only if NO linkedJid was known)
+        if (messages.length === 0 && !linkedJid && cleanJid.startsWith('55')) {
+            const number = cleanJid.split('@')[0];
+            const alt = number.length === 13 ? number.slice(0, 4) + number.slice(5) :
+                (number.length === 12 ? number.slice(0, 4) + '9' + number.slice(4) : null);
+            if (alt) {
+                const altMsgs = await tryFetch(`${alt}@s.whatsapp.net`);
+                messages = [...messages, ...altMsgs];
+            }
+        }
+
+        // 4. Sort by Timestamp Descending (Newest first)
+        return messages.sort((a, b) => {
+            const tA = a.messageTimestamp || 0;
+            const tB = b.messageTimestamp || 0;
+            return tB - tA;
+        });
+    }
+
+    // PHONE NUMBER EXTRACTION & MANAGEMENT
+    getManualPhoneMapping(jid) {
+        try {
+            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
+            return mappings[jid] || null;
         } catch (e) {
-            console.error(`Error fetching messages for ${targetJid}:`, e);
-            return [];
+            console.error('Error reading phone mappings:', e);
+            return null;
         }
-    };
+    }
 
-    // 1. Fetch Main JID
-    let messages = await tryFetch(cleanJid);
+    setManualPhoneMapping(jid, phoneNumber) {
+        try {
+            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
+            mappings[jid] = phoneNumber;
+            localStorage.setItem('contactPhoneMap', JSON.stringify(mappings));
+            console.log(`✅ Saved phone mapping: ${jid} → ${phoneNumber}`);
+            return true;
+        } catch (e) {
+            console.error('Error saving phone mapping:', e);
+            return false;
+        }
+    }
 
-    // 2. Fetch Linked LID (if exists) - The "Missing Audio" Recovery
-    if (linkedJid) {
-        const lidMessages = await tryFetch(this.standardizeJid(linkedJid));
-        if (lidMessages.length > 0) {
-            // Merge and Deduplicate by Message Key ID
-            const seen = new Set(messages.map(m => m.key?.id));
-            lidMessages.forEach(m => {
-                if (!seen.has(m.key?.id)) {
-                    messages.push(m);
+    extractPhoneNumber(jid, chatData = null) {
+        if (!jid) return null;
+
+        // Priority 1: Regular phone number JID (e.g., "5531992957555@s.whatsapp.net")
+        if (jid.includes('@s.whatsapp.net') && !jid.includes('@lid')) {
+            const phone = jid.split('@')[0];
+            // Validate it's actually a phone number (10-15 digits)
+            if (/^\d{10,15}$/.test(phone)) {
+                return phone;
+            }
+        }
+
+        // Priority 2: Extract from chat metadata (for @lid contacts)
+        if (chatData) {
+            // Check participant field (often contains the real phone number)
+            const participant = chatData.lastMessage?.key?.participant ||
+                chatData.lastMessage?.participant ||
+                chatData.participant;
+
+            if (participant && participant.includes('@s.whatsapp.net')) {
+                const phone = participant.split('@')[0];
+                if (/^\d{10,15}$/.test(phone)) {
+                    console.log(`✅ Extracted phone from participant: ${phone}`);
+                    return phone;
                 }
-            });
+            }
+
+            // Check remoteJid variations
+            const remoteJid = chatData.lastMessage?.key?.remoteJid || chatData.remoteJid;
+            if (remoteJid && remoteJid.includes('@s.whatsapp.net') && !remoteJid.includes('@lid')) {
+                const phone = remoteJid.split('@')[0];
+                if (/^\d{10,15}$/.test(phone)) {
+                    console.log(`✅ Extracted phone from remoteJid: ${phone}`);
+                    return phone;
+                }
+            }
+
+            // Diagnostic logging for @lid contacts
+            if (jid.includes('@lid')) {
+                console.log('🔍 @lid contact metadata:', {
+                    jid,
+                    participant: chatData.lastMessage?.key?.participant,
+                    remoteJid: chatData.lastMessage?.key?.remoteJid,
+                    availableFields: Object.keys(chatData)
+                });
+            }
         }
-    }
 
-    // 3. Fallback: Brazilian 9-digit heuristic (only if NO linkedJid was known)
-    if (messages.length === 0 && !linkedJid && cleanJid.startsWith('55')) {
-        const number = cleanJid.split('@')[0];
-        const alt = number.length === 13 ? number.slice(0, 4) + number.slice(5) :
-            (number.length === 12 ? number.slice(0, 4) + '9' + number.slice(4) : null);
-        if (alt) {
-            const altMsgs = await tryFetch(`${alt}@s.whatsapp.net`);
-            messages = [...messages, ...altMsgs];
+        // Priority 3: Manual mapping from localStorage
+        const manualPhone = this.getManualPhoneMapping(jid);
+        if (manualPhone) {
+            console.log(`✅ Using manual mapping: ${manualPhone}`);
+            return manualPhone;
         }
-    }
 
-    // 4. Sort by Timestamp Descending (Newest first)
-    return messages.sort((a, b) => {
-        const tA = a.messageTimestamp || 0;
-        const tB = b.messageTimestamp || 0;
-        return tB - tA;
-    });
-}
-
-// PHONE NUMBER EXTRACTION & MANAGEMENT
-getManualPhoneMapping(jid) {
-    try {
-        const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
-        return mappings[jid] || null;
-    } catch (e) {
-        console.error('Error reading phone mappings:', e);
+        // Priority 4: No phone number found
+        console.warn(`⚠️ Could not extract phone number for: ${jid}`);
         return null;
     }
-}
-
-setManualPhoneMapping(jid, phoneNumber) {
-    try {
-        const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
-        mappings[jid] = phoneNumber;
-        localStorage.setItem('contactPhoneMap', JSON.stringify(mappings));
-        console.log(`✅ Saved phone mapping: ${jid} → ${phoneNumber}`);
-        return true;
-    } catch (e) {
-        console.error('Error saving phone mapping:', e);
-        return false;
-    }
-}
-
-extractPhoneNumber(jid, chatData = null) {
-    if (!jid) return null;
-
-    // Priority 1: Regular phone number JID (e.g., "5531992957555@s.whatsapp.net")
-    if (jid.includes('@s.whatsapp.net') && !jid.includes('@lid')) {
-        const phone = jid.split('@')[0];
-        // Validate it's actually a phone number (10-15 digits)
-        if (/^\d{10,15}$/.test(phone)) {
-            return phone;
-        }
-    }
-
-    // Priority 2: Extract from chat metadata (for @lid contacts)
-    if (chatData) {
-        // Check participant field (often contains the real phone number)
-        const participant = chatData.lastMessage?.key?.participant ||
-            chatData.lastMessage?.participant ||
-            chatData.participant;
-
-        if (participant && participant.includes('@s.whatsapp.net')) {
-            const phone = participant.split('@')[0];
-            if (/^\d{10,15}$/.test(phone)) {
-                console.log(`✅ Extracted phone from participant: ${phone}`);
-                return phone;
-            }
-        }
-
-        // Check remoteJid variations
-        const remoteJid = chatData.lastMessage?.key?.remoteJid || chatData.remoteJid;
-        if (remoteJid && remoteJid.includes('@s.whatsapp.net') && !remoteJid.includes('@lid')) {
-            const phone = remoteJid.split('@')[0];
-            if (/^\d{10,15}$/.test(phone)) {
-                console.log(`✅ Extracted phone from remoteJid: ${phone}`);
-                return phone;
-            }
-        }
-
-        // Diagnostic logging for @lid contacts
-        if (jid.includes('@lid')) {
-            console.log('🔍 @lid contact metadata:', {
-                jid,
-                participant: chatData.lastMessage?.key?.participant,
-                remoteJid: chatData.lastMessage?.key?.remoteJid,
-                availableFields: Object.keys(chatData)
-            });
-        }
-    }
-
-    // Priority 3: Manual mapping from localStorage
-    const manualPhone = this.getManualPhoneMapping(jid);
-    if (manualPhone) {
-        console.log(`✅ Using manual mapping: ${manualPhone}`);
-        return manualPhone;
-    }
-
-    // Priority 4: No phone number found
-    console.warn(`⚠️ Could not extract phone number for: ${jid}`);
-    return null;
-}
 
     async sendMessage(jid, text, chatData = null) {
-    const { instanceName, chats } = useStore.getState();
-    if (!instanceName || !jid || !text) return null;
+        const { instanceName, chats } = useStore.getState();
+        if (!instanceName || !jid || !text) return null;
 
-    // Fetch complete chat data from store if not provided
-    if (!chatData && chats) {
-        chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
-        console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
-    }
+        // Fetch complete chat data from store if not provided
+        if (!chatData && chats) {
+            chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
+            console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
+        }
 
-    // CRITICAL: Extract phone number with fallback logic (pass chatData for metadata extraction)
-    const phoneNumber = this.extractPhoneNumber(jid, chatData);
+        // CRITICAL: Extract phone number with fallback logic (pass chatData for metadata extraction)
+        const phoneNumber = this.extractPhoneNumber(jid, chatData);
 
-    if (!phoneNumber) {
-        return {
-            error: true,
-            message: `❌ Número de telefone não disponível para este contato.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
-            needsPhoneNumber: true,
-            jid: jid
-        };
-    }
-
-    const result = await this.request(`/message/sendText/${instanceName}`, 'POST', {
-        number: phoneNumber,
-        text: text
-    });
-
-    // Check for "number doesn't exist" error
-    if (result?.response?.message?.[0]?.exists === false) {
-        return {
-            error: true,
-            message: `Número ${phoneNumber} não existe no WhatsApp ou não está acessível.`
-        };
-    }
-
-    return result;
-}
-
-    async sendMedia(jid, file, caption = '', isAudio = false) {
-    const { instanceName } = useStore.getState();
-    if (!instanceName || !jid || !file) return null;
-
-    try {
-        const cleanJid = this.standardizeJid(jid);
-        if (!cleanJid) return null;
-
-        // Convert file to base64
-        const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result;
-                // Remove the data:*/*;base64, prefix
-                const base64String = result.split(',')[1];
-                resolve(base64String);
+        if (!phoneNumber) {
+            return {
+                error: true,
+                message: `❌ Número de telefone não disponível para este contato.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
+                needsPhoneNumber: true,
+                jid: jid
             };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+        }
+
+        const result = await this.request(`/message/sendText/${instanceName}`, 'POST', {
+            number: phoneNumber,
+            text: text
         });
 
-        // Determine media type
-        let mediatype = 'document';
-        if (isAudio || file.type.startsWith('audio/')) mediatype = 'audio'; // Evolution treats 'audio' -> PTT usually
-        else if (file.type.startsWith('image/')) mediatype = 'image';
-        else if (file.type.startsWith('video/')) mediatype = 'video';
+        // Check for "number doesn't exist" error
+        if (result?.response?.message?.[0]?.exists === false) {
+            return {
+                error: true,
+                message: `Número ${phoneNumber} não existe no WhatsApp ou não está acessível.`
+            };
+        }
 
-        const payload = {
-            number: cleanJid,
-            mediatype,
-            mimetype: file.type || 'audio/mp4',
-            caption: caption || file.name,
-            fileName: file.name,
-            media: base64
-        };
-
-        // If it's a PTT audio, use appropriate endpoint/body if needed, but sendMedia usually handles it by type 'audio'
-        // Evolution API v2: "audio" mediatype often implies PTT if mimetype is audio/ogg; codecs=opus
-
-        return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
-    } catch (e) {
-        console.error("Send Media Error:", e);
-        return null;
+        return result;
     }
-}
+
+    async sendMedia(jid, file, caption = '', isAudio = false) {
+        const { instanceName } = useStore.getState();
+        if (!instanceName || !jid || !file) return null;
+
+        try {
+            const cleanJid = this.standardizeJid(jid);
+            if (!cleanJid) return null;
+
+            // Convert file to base64
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result;
+                    // Remove the data:*/*;base64, prefix
+                    const base64String = result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            // Determine media type
+            let mediatype = 'document';
+            if (isAudio || file.type.startsWith('audio/')) mediatype = 'audio'; // Evolution treats 'audio' -> PTT usually
+            else if (file.type.startsWith('image/')) mediatype = 'image';
+            else if (file.type.startsWith('video/')) mediatype = 'video';
+
+            const payload = {
+                number: cleanJid,
+                mediatype,
+                mimetype: file.type || 'audio/mp4',
+                caption: caption || file.name,
+                fileName: file.name,
+                media: base64
+            };
+
+            // If it's a PTT audio, use appropriate endpoint/body if needed, but sendMedia usually handles it by type 'audio'
+            // Evolution API v2: "audio" mediatype often implies PTT if mimetype is audio/ogg; codecs=opus
+
+            return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
+        } catch (e) {
+            console.error("Send Media Error:", e);
+            return null;
+        }
+    }
 }
 
 export default new WhatsAppService();
