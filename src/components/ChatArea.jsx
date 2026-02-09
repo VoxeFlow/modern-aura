@@ -633,8 +633,8 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* MOBILE SUGGESTION CARD (Visible only on mobile when suggestion exists) */}
-                    {suggestion && !suggestion.includes('...') && (
+                    {/* MOBILE SUGGESTION CARD - REMOVED PER USER REQUEST */}
+                    {/* {suggestion && !suggestion.includes('...') && (
                         <div className="mobile-suggestion-card glass-panel">
                             <div className="suggestion-header">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -650,7 +650,7 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                                 Usar Sugestão
                             </button>
                         </div>
-                    )}
+                    )} */}
 
                     <form className="message-input-area" onSubmit={handleSend} style={{ position: 'relative' }}>
 
