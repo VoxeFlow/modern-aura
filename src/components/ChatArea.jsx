@@ -548,41 +548,45 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                             return null;
                         })()}
 
+
                         <button
                             onClick={() => {
-                                const currentName = activeChat.name || activeChat.pushName || "";
-                                const currentPhone = WhatsAppService.extractPhoneNumber(activeChat.id, activeChat);
+                                const currentName = WhatsAppService.getManualNameMapping(activeChat.id) || activeChat.name || activeChat.pushName || "";
+                                const currentPhone = WhatsAppService.extractPhoneNumber(activeChat.id, activeChat) || "";
 
-                                // Prompt for name first
-                                const newName = window.prompt("✏️ EDITAR CONTATO\n\n1️⃣ Nome do contato:", currentName);
-                                if (newName === null) return; // User cancelled
+                                // Single prompt with format: "Nome | Número"
+                                const input = window.prompt(
+                                    "✏️ EDITAR CONTATO\n\nFormato: Nome | Número\n(deixe em branco o que não quiser alterar)\n\nExemplo: Maria Silva | 5531999998888",
+                                    `${currentName} | ${currentPhone}`
+                                );
 
-                                // Prompt for phone number
-                                const newPhone = window.prompt("2️⃣ Número do WhatsApp (com DDD, apenas números):\n\nEx: 5531999998888", currentPhone || "");
-                                if (newPhone === null) return; // User cancelled
+                                if (input === null) return; // Cancelled
 
-                                // Validate phone
-                                if (newPhone && !/^\d{10,15}$/.test(newPhone)) {
-                                    alert("❌ Número inválido. Digite entre 10 e 15 números.");
-                                    return;
+                                const parts = input.split('|').map(p => p.trim());
+                                const newName = parts[0] || "";
+                                const newPhone = parts[1] || "";
+
+                                let saved = false;
+
+                                // Save name if different and not empty
+                                if (newName && newName !== currentName) {
+                                    WhatsAppService.setManualNameMapping(activeChat.id, newName);
+                                    saved = true;
+                                    console.log("✅ Nome salvo:", newName);
                                 }
 
-                                // Save name if provided
-                                if (newName && newName.trim()) {
-                                    WhatsAppService.setManualNameMapping(activeChat.id, newName.trim());
-                                }
-
-                                // Save phone if provided
-                                if (newPhone) {
+                                // Save phone if valid
+                                if (newPhone && /^\d{10,15}$/.test(newPhone)) {
                                     WhatsAppService.setManualPhoneMapping(activeChat.id, newPhone);
+                                    saved = true;
+                                    console.log("✅ Número salvo:", newPhone);
+                                } else if (newPhone && newPhone !== currentPhone) {
+                                    console.warn("⚠️ Número inválido ignorado:", newPhone);
                                 }
 
-                                const savedInfo = [];
-                                if (newName && newName.trim()) savedInfo.push(`Nome: ${newName.trim()}`);
-                                if (newPhone) savedInfo.push(`Número: ${newPhone}`);
-
-                                if (savedInfo.length > 0) {
-                                    alert(`✅ Contato atualizado!\n${savedInfo.join('\n')}\n\nTente enviar a mensagem novamente.`);
+                                if (saved) {
+                                    // Force re-render by updating activeChat
+                                    window.location.reload();
                                 }
                             }}
                             className="icon-btn"
