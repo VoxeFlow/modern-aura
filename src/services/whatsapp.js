@@ -437,104 +437,127 @@ class WhatsAppService {
             } else {
                 console.log(`🕵️ Smart Scan: No messages found for ${jid}`);
             }
-        } catch (e) {
-            console.error("Deep Hunt Error:", e);
+
+            // 3. DEEP HUNT: Search Address Book by Name (Last Resort)
+            const targetName = (chatData?.name || chatData?.pushName || chatData?.verifiedName);
+            if (targetName) {
+                console.log(`🕵️ Deep Hunt: Searching Address Book for "${targetName}"...`);
+                try {
+                    const contacts = await this.fetchContacts();
+                    if (Array.isArray(contacts)) {
+                        const cleanName = (n) => String(n || "").toLowerCase().trim();
+                        const searchName = cleanName(targetName);
+
+                        const match = contacts.find(c => {
+                            const cName = cleanName(c.name || c.pushName);
+                            return cName === searchName && c.id && c.id.includes('@s.whatsapp.net') && !c.id.includes('@lid');
+                        });
+
+                        if (match) {
+                            const extracted = match.id.split('@')[0];
+                            console.log(`✅ Deep Hunt FOUND via Contact Name: ${extracted}`);
+                            this.setManualPhoneMapping(jid, extracted);
+                            return extracted;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Deep Hunt Error:", e);
+                }
+            }
         }
-    }
-}
 
-// 4. FINAL FALLBACK: Blind Send (Return the LID/JID itself)
-if (jid) {
-    console.warn(`⚠️ All resolution strategies failed for ${jid}. Using Raw JID for Blind Send.`);
-    return jid; // Return the LID so Evolution API tries to send anyway
-}
+        // 4. FINAL FALLBACK: Blind Send (Return the LID/JID itself)
+        if (jid) {
+            console.warn(`⚠️ All resolution strategies failed for ${jid}. Using Raw JID for Blind Send.`);
+            return jid; // Return the LID so Evolution API tries to send anyway
+        }
 
-return null;
+        return null;
     }
 
     async sendMessage(jid, text, chatData = null) {
-    const { instanceName, chats } = useStore.getState();
-    if (!instanceName || !jid || !text) return null;
+        const { instanceName, chats } = useStore.getState();
+        if (!instanceName || !jid || !text) return null;
 
-    // Fetch complete chat data from store if not provided
-    if (!chatData && chats) {
-        chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
-        console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
-    }
+        // Fetch complete chat data from store if not provided
+        if (!chatData && chats) {
+            chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
+            console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
+        }
 
-    // CRITICAL: Extract phone number with Smart Scan Fallback
-    const phoneNumber = await this.ensurePhoneNumber(jid, chatData);
+        // CRITICAL: Extract phone number with Smart Scan Fallback
+        const phoneNumber = await this.ensurePhoneNumber(jid, chatData);
 
-    if (!phoneNumber) {
-        return {
-            error: true,
-            message: `❌ Número de telefone não encontrado nem no histórico.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
-            needsPhoneNumber: true,
-            jid: jid
-        };
-    }
-
-    const result = await this.request(`/message/sendText/${instanceName}`, 'POST', {
-        number: phoneNumber,
-        text: text
-    });
-
-    // Check for "number doesn't exist" error
-    if (result?.response?.message?.[0]?.exists === false) {
-        return {
-            error: true,
-            message: `Número ${phoneNumber} não existe no WhatsApp ou não está acessível.`
-        };
-    }
-
-    return result;
-}
-
-    async sendMedia(jid, file, caption = '', isAudio = false) {
-    const { instanceName } = useStore.getState();
-    if (!instanceName || !jid || !file) return null;
-
-    try {
-        const cleanJid = this.standardizeJid(jid);
-        if (!cleanJid) return null;
-
-        // Convert file to base64
-        const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result;
-                // Remove the data:*/*;base64, prefix
-                const base64String = result.split(',')[1];
-                resolve(base64String);
+        if (!phoneNumber) {
+            return {
+                error: true,
+                message: `❌ Número de telefone não encontrado nem no histórico.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
+                needsPhoneNumber: true,
+                jid: jid
             };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+        }
+
+        const result = await this.request(`/message/sendText/${instanceName}`, 'POST', {
+            number: phoneNumber,
+            text: text
         });
 
-        // Determine media type
-        let mediatype = 'document';
-        if (isAudio || file.type.startsWith('audio/')) mediatype = 'audio'; // Evolution treats 'audio' -> PTT usually
-        else if (file.type.startsWith('image/')) mediatype = 'image';
-        else if (file.type.startsWith('video/')) mediatype = 'video';
+        // Check for "number doesn't exist" error
+        if (result?.response?.message?.[0]?.exists === false) {
+            return {
+                error: true,
+                message: `Número ${phoneNumber} não existe no WhatsApp ou não está acessível.`
+            };
+        }
 
-        const payload = {
-            number: cleanJid,
-            mediatype,
-            mimetype: file.type || 'audio/mp4',
-            caption: caption || file.name,
-            fileName: file.name,
-            media: base64
-        };
-
-        // If it's a PTT audio, use appropriate endpoint/body if needed, but sendMedia usually handles it by type 'audio'
-        // Evolution API v2: "audio" mediatype often implies PTT if mimetype is audio/ogg; codecs=opus
-
-        return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
-    } catch (e) {
-        console.error("Send Media Error:", e);
-        return null;
+        return result;
     }
-}
+
+    async sendMedia(jid, file, caption = '', isAudio = false) {
+        const { instanceName } = useStore.getState();
+        if (!instanceName || !jid || !file) return null;
+
+        try {
+            const cleanJid = this.standardizeJid(jid);
+            if (!cleanJid) return null;
+
+            // Convert file to base64
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result;
+                    // Remove the data:*/*;base64, prefix
+                    const base64String = result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            // Determine media type
+            let mediatype = 'document';
+            if (isAudio || file.type.startsWith('audio/')) mediatype = 'audio'; // Evolution treats 'audio' -> PTT usually
+            else if (file.type.startsWith('image/')) mediatype = 'image';
+            else if (file.type.startsWith('video/')) mediatype = 'video';
+
+            const payload = {
+                number: cleanJid,
+                mediatype,
+                mimetype: file.type || 'audio/mp4',
+                caption: caption || file.name,
+                fileName: file.name,
+                media: base64
+            };
+
+            // If it's a PTT audio, use appropriate endpoint/body if needed, but sendMedia usually handles it by type 'audio'
+            // Evolution API v2: "audio" mediatype often implies PTT if mimetype is audio/ogg; codecs=opus
+
+            return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
+        } catch (e) {
+            console.error("Send Media Error:", e);
+            return null;
+        }
+    }
 }
 
 export default new WhatsAppService();
