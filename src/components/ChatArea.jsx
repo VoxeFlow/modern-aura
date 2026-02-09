@@ -249,11 +249,11 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                 // Show error to user
                 const errorMsg = res?.message || 'Erro ao enviar mensagem';
                 console.error("❌ Erro ao enviar:", errorMsg);
-                alert(`❌ ${errorMsg}`);
+                openConfirm("Falha no Envio", `${errorMsg}\n\n💡 Dica: Use o botão de lápis (✏️) no topo para corrigir o número.`);
             }
         } catch (e) {
             console.error("AURA Send Error:", e);
-            alert(`❌ Erro: ${e.message}`);
+            openConfirm("Erro", `Erro inesperado: ${e.message}`);
         }
         setSending(false);
     };
