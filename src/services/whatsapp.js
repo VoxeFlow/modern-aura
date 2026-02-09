@@ -367,8 +367,14 @@ class WhatsAppService {
     }
 
     async sendMessage(jid, text, chatData = null) {
-        const { instanceName } = useStore.getState();
+        const { instanceName, chats } = useStore.getState();
         if (!instanceName || !jid || !text) return null;
+
+        // Fetch complete chat data from store if not provided
+        if (!chatData && chats) {
+            chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
+            console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
+        }
 
         // CRITICAL: Extract phone number with fallback logic (pass chatData for metadata extraction)
         const phoneNumber = this.extractPhoneNumber(jid, chatData);
