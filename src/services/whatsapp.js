@@ -1,6 +1,11 @@
 import { useStore } from '../store/useStore';
+import { io } from 'socket.io-client';
 
 class WhatsAppService {
+    constructor() {
+        this.socket = null;
+    }
+
     async request(endpoint, method = 'GET', body = null) {
         const { apiUrl, apiKey } = useStore.getState();
         if (!apiUrl || !apiKey) return null;
@@ -31,11 +36,61 @@ class WhatsAppService {
         }
     }
 
+    connectSocket() {
+        const { apiUrl, apiKey, instanceName } = useStore.getState();
+        if (!apiUrl || !instanceName || this.socket) return;
+
+        console.log(`🔌 Initializing Socket for ${instanceName}...`);
+
+        // Evolution API usually exposes socket at root
+        const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+
+        this.socket = io(baseUrl, {
+            transports: ['websocket', 'polling'],
+            query: {
+                apikey: apiKey
+            }
+        });
+
+        this.socket.on('connect', () => {
+            console.log('✅ Socket Connected!');
+        });
+
+        this.socket.on(`messages.upsert`, (payload) => {
+            // Payload format: { instance, data: { ...message... }, ... }
+            if (payload?.data) {
+                const msg = payload.data;
+                const remoteJid = msg.key?.remoteJid;
+
+                // DEEP SCAN for Phone Number in Real-Time
+                // This mimics N8N's ability to see the raw webhook
+                if (remoteJid && remoteJid.includes('@lid')) {
+                    // Check if message has participant with real number
+                    const participant = msg.key?.participant || msg.participant;
+                    if (participant && participant.includes('@s.whatsapp.net')) {
+                        const extracted = participant.split('@')[0];
+                        console.log(`🕵️ Socket Discovery: Found valid number ${extracted} for LID ${remoteJid}`);
+                        this.setManualPhoneMapping(remoteJid, extracted);
+                    }
+                }
+
+                // Append to store if active chat? 
+                // For now, just logging and fixing contact mapping.
+                // We can expand this to update useStore messages later.
+            }
+        });
+    }
+
     async checkConnection() {
         const { instanceName } = useStore.getState();
         if (!instanceName) return 'disconnected';
+
+        // Ensure socket is connected
+        if (!this.socket) this.connectSocket();
+
         try {
             const data = await this.request(`/instance/connectionState/${instanceName}`);
+
             if (data?.instance?.state) return data.instance.state;
 
             // If 404 (instance not found), returns null from request()
