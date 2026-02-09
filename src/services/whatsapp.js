@@ -404,6 +404,44 @@ class WhatsAppService {
         return null;
     }
 
+    async ensurePhoneNumber(jid, chatData = null) {
+        // 1. Try synchronous extraction first (Fastest)
+        let phoneNumber = this.extractPhoneNumber(jid, chatData);
+        if (phoneNumber) return phoneNumber;
+
+        // 2. If valid chatData exists, try scanning its history via API
+        if (chatData || jid) {
+            console.log(`🕵️ Smart Scan: Searching phone number for ${jid}...`);
+
+            // Fetch last 50 messages to find a participant
+            const messages = await this.fetchMessages(jid);
+            if (messages && messages.length > 0) {
+                for (const msg of messages) {
+                    const participant = msg.key?.participant || msg.participant;
+                    const remoteJid = msg.key?.remoteJid || msg.remoteJid;
+
+                    // Check if it's a valid phone JID
+                    const potential = [participant, remoteJid].find(p => p && p.includes('@s.whatsapp.net') && !p.includes('@lid'));
+
+                    if (potential) {
+                        const extracted = potential.split('@')[0];
+                        if (/^\d{10,15}$/.test(extracted)) {
+                            console.log(`✅ Smart Scan FOUND: ${extracted} in message from ${new Date(msg.messageTimestamp * 1000).toLocaleString()}`);
+
+                            // Auto-save the mapping!
+                            this.setManualPhoneMapping(jid, extracted);
+                            return extracted;
+                        }
+                    }
+                }
+            } else {
+                console.log(`🕵️ Smart Scan: No messages found for ${jid}`);
+            }
+        }
+
+        return null;
+    }
+
     async sendMessage(jid, text, chatData = null) {
         const { instanceName, chats } = useStore.getState();
         if (!instanceName || !jid || !text) return null;
@@ -414,13 +452,13 @@ class WhatsAppService {
             console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
         }
 
-        // CRITICAL: Extract phone number with fallback logic (pass chatData for metadata extraction)
-        const phoneNumber = this.extractPhoneNumber(jid, chatData);
+        // CRITICAL: Extract phone number with Smart Scan Fallback
+        const phoneNumber = await this.ensurePhoneNumber(jid, chatData);
 
         if (!phoneNumber) {
             return {
                 error: true,
-                message: `❌ Número de telefone não disponível para este contato.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
+                message: `❌ Número de telefone não encontrado nem no histórico.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
                 needsPhoneNumber: true,
                 jid: jid
             };
