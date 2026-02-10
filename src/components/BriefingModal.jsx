@@ -160,7 +160,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                         >
                             {isResetting ? "Limpando..." : (confirmReset ? "TEM CERTEZA?" : "Resetar Cérebro")}
                         </button>
-                        <span style={{ fontSize: '9px', color: '#ccc' }}>v11.3.13</span>
+                        <span style={{ fontSize: '9px', color: '#ccc' }}>v12.0-beta</span>
                         <X size={24} color="#1d1d1f" onClick={onClose} style={{ cursor: 'pointer', opacity: 0.3 }} />
                     </div>
                 </div>
