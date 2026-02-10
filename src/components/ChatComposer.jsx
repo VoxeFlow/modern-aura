@@ -22,20 +22,21 @@ const ChatComposer = ({
                     style={{
                         position: 'absolute',
                         bottom: '75px',
-                        left: '0',
-                        background: 'rgba(18, 18, 18, 0.95)',
+                        left: '12px',
+                        background: 'rgba(18, 18, 18, 0.98)',
                         backdropFilter: 'blur(30px)',
                         WebkitBackdropFilter: 'blur(30px)',
-                        border: '1px solid rgba(197, 160, 89, 0.2)',
-                        borderRadius: '20px',
-                        padding: '8px',
+                        border: '1px solid rgba(197, 160, 89, 0.15)',
+                        borderRadius: '24px',
+                        padding: '10px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '4px',
+                        gap: '6px',
                         zIndex: 1000,
                         minWidth: '220px',
                         boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
-                        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                        animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                        transformOrigin: 'bottom left'
                     }}
                 >
                     <button
@@ -45,23 +46,24 @@ const ChatComposer = ({
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
+                            justifyContent: 'flex-start',
+                            gap: '14px',
                             background: 'transparent',
                             border: 'none',
                             color: '#ffffff',
                             cursor: 'pointer',
-                            padding: '12px 16px',
+                            padding: '14px 18px',
                             fontSize: '15px',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             textAlign: 'left',
                             width: '100%',
-                            borderRadius: '12px',
+                            borderRadius: '16px',
                             transition: 'all 0.2s',
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(197, 160, 89, 0.15)'; e.currentTarget.style.color = 'var(--accent-primary)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ffffff'; }}
                     >
-                        <Image size={20} style={{ color: 'var(--accent-primary)' }} />
+                        <Image size={22} style={{ color: 'var(--accent-primary)' }} />
                         <span>Fotos e Vídeos</span>
                     </button>
 
@@ -72,23 +74,24 @@ const ChatComposer = ({
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
+                            justifyContent: 'flex-start',
+                            gap: '14px',
                             background: 'transparent',
                             border: 'none',
                             color: '#ffffff',
                             cursor: 'pointer',
-                            padding: '12px 16px',
+                            padding: '14px 18px',
                             fontSize: '15px',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             textAlign: 'left',
                             width: '100%',
-                            borderRadius: '12px',
+                            borderRadius: '16px',
                             transition: 'all 0.2s',
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(197, 160, 89, 0.15)'; e.currentTarget.style.color = 'var(--accent-primary)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ffffff'; }}
                     >
-                        <Camera size={20} style={{ color: 'var(--accent-primary)' }} />
+                        <Camera size={22} style={{ color: 'var(--accent-primary)' }} />
                         <span>Usar Câmera</span>
                     </button>
 
@@ -99,23 +102,24 @@ const ChatComposer = ({
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
+                            justifyContent: 'flex-start',
+                            gap: '14px',
                             background: 'transparent',
                             border: 'none',
                             color: '#ffffff',
                             cursor: 'pointer',
-                            padding: '12px 16px',
+                            padding: '14px 18px',
                             fontSize: '15px',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             textAlign: 'left',
                             width: '100%',
-                            borderRadius: '12px',
+                            borderRadius: '16px',
                             transition: 'all 0.2s',
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(197, 160, 89, 0.15)'; e.currentTarget.style.color = 'var(--accent-primary)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ffffff'; }}
                     >
-                        <FileText size={20} style={{ color: 'var(--accent-primary)' }} />
+                        <FileText size={22} style={{ color: 'var(--accent-primary)' }} />
                         <span>Documento</span>
                     </button>
                 </div>
