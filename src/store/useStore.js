@@ -18,68 +18,7 @@ export const useStore = create(
             apiKey: import.meta.env.VITE_API_KEY || '',
             instanceName: import.meta.env.VITE_INSTANCE_NAME || 'VoxeFlow',
             briefing: '', // V7: Start empty to trigger interactive briefing
-            knowledgeBase: [
-                {
-                    id: 1707410001,
-                    q: "Para começarmos: Qual o nome da sua empresa e o que exatamente vocês fazem?",
-                    a: "Impar Odonto, somos uma clínica odontológica",
-                    analysis: "Posicionamento claro. O nome 'Impar' sugere exclusividade e excelência. A IA adotará um tom profissional e acolhedor, reforçando a autoridade da clínica como referência em odontologia."
-                },
-                {
-                    id: 1707410002,
-                    q: "Qual é o endereço da Impar Odonto?",
-                    a: "Avenida Amazonas, 1021 no Centro de Betim, Minas Gerais",
-                    analysis: "Localização central estratégica. A IA destacará a conveniência e facilidade de acesso ao mencionar o endereço, usando 'Centro de Betim' como âncora de valor e referência conhecida."
-                },
-                {
-                    id: 1707410003,
-                    q: "Quais são os principais serviços e tratamentos oferecidos pela Impar Odonto?",
-                    a: "Fazemos todos os tipos de tratamentos, desde odontopediatria a Implantes dentários, incluindo, clareamento, extraçao, protese, Invisalign (alinhadores) canal, etc",
-                    analysis: "Portfólio 'Full Service'. A IA fará cross-selling inteligente (ex: sugerir clareamento após limpeza). A menção a 'Invisalign' e 'Implantes' indica foco em ticket médio alto e tecnologia."
-                },
-                {
-                    id: 1707410004,
-                    q: "Quais são os principais diferenciais da Impar Odonto em relação a outras clínicas odontológicas?",
-                    a: "Somos uma clinica nova em Betim, e o ambiente é bem clean, diferenciado, estamos no terreo e possuimos estacionamento proprio.",
-                    analysis: "Acessibilidade e Modernidade são pilares. 'Térreo' e 'Estacionamento' são argumentos fortes para conversão. 'Clean' e 'Nova' sugerem higiene e tecnologia de ponta, gerando confiança imediata."
-                },
-                {
-                    id: 1707410005,
-                    q: "Quais são os horários de funcionamento da Impar Odonto?",
-                    a: "Segunda a Sexta, de 09h até as 18h e sabado de 09h ate as 12h.",
-                    analysis: "Horário comercial padrão. A IA gerenciará expectativas fora desse horário, sugerindo agendamento para o próximo dia útil ou capturando o lead para retorno prioritário da equipe."
-                },
-                {
-                    id: 1707410006,
-                    q: "Vocês oferecem algum tipo de garantia ou acompanhamento pós-tratamento para os pacientes?",
-                    a: "Garantia de 1 ano, e sempre acompanhamos nossos pacientes, acreditamos que dessa forma, estreitamos os laços e criamos conexao com nossos pacientes.",
-                    analysis: "A 'Garantia de 1 ano' é um diferencial poderoso de confiança (Risk Reversal). O foco em 'conexão' define a personalidade da IA: empática, cuidadosa e relacional, não apenas transacional."
-                },
-                {
-                    id: 1707410007,
-                    q: "Vocês oferecem algum tipo de plano de pagamento ou financiamento para facilitar o acesso aos tratamentos?",
-                    a: "Trabalhamos com pagamento em dinheiro, pix, cartao de debito e dividimos em ate 24 vezes sem juros. Pretendemos expandir nossas formas de pagamento e aceitar boletos em um futuro breve.",
-                    analysis: "Flexibilidade financeira agressiva (24x sem juros) é um grande facilitador. A IA usará isso para quebrar objeções de preço, focado no que existe hoje (Cartão/Pix) para fechar vendas."
-                },
-                {
-                    id: 1707410008,
-                    q: "Quais são as principais preocupações ou dúvidas que seus pacientes costumam ter antes de iniciar um tratamento na Impar Odonto?",
-                    a: "A maioria quer saber sobre preço. (ESTRATÉGIA: Podemos passar médias. Ex: Protocolos a partir de R$ 300,00 a R$ 600,00 na manutenção, ou valores de referência se perguntarem. O importante é não perder o lead por falta de informação, mas sempre tentar agendar).",
-                    analysis: "Flexibilidade Tática. A IA usará 'Preço de Referência' (ex: 'a partir de') para qualificar o lead sem assustar. Se o valor for ok para o cliente, o agendamento é quase certo."
-                },
-                {
-                    id: 1707410009,
-                    q: "Vocês oferecem consultas de avaliação gratuitas ou algum tipo de desconto para novos pacientes?",
-                    a: "Sim, oferecemos a consulta de avaliaçao como cortesia para que eles possam conhecer nossa estrutura e nossos excelentes profissionais",
-                    analysis: "Isca perfeita (Lead Magnet). A 'Avaliação Cortesia' será o Call-to-Action (CTA) principal. O objetivo da conversa será agendar essa visita para o cliente conhecer a estrutura 'clean'."
-                },
-                {
-                    id: 1707410010,
-                    q: "Vocês têm alguma parceria com planos de saúde ou convênios odontológicos?",
-                    a: "Não trabalhamos com covenios, preferimos trabalhar com materiais de primeira linha, o que não seria possivel se atendêssemos convenios.",
-                    analysis: "Posicionamento Premium. A IA justificará a ausência de convênios com a qualidade superior dos materiais. 'Não atendemos convênio, atendemos você com o melhor que existe.'"
-                }
-            ], // v1.2.3: Structured Q&A for the Knowledge Dashboard
+            knowledgeBase: [], // Start empty for clean onboarding
             ragSources: [], // AURA v11: Clean state - RAG dependent on user input only
 
             isConnected: false,
