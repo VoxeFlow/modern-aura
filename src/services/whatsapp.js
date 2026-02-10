@@ -188,117 +188,149 @@ class WhatsAppService {
         }
     }
 
+    // --- IDENTITY RESOLUTION (AURA CORE v9) ---
+
+    getManualPhoneMapping(jid) {
+        try {
+            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
+            return mappings[jid] || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    getManualNameMapping(jid) {
+        try {
+            const mappings = JSON.parse(localStorage.getItem('contactNameMap') || '{}');
+            return mappings[jid] || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Centralized function to resolve the "truth" about a contact.
+     * Prioritizes (1) Manual Mappings, (2) Native JID info, (3) Last Message Metadata.
+     */
+    resolveIdentity(jid, chatData = null) {
+        if (!jid) return { id: null, phone: null, name: null, isLid: false };
+
+        const isLid = String(jid).includes('@lid');
+        const manualPhone = this.getManualPhoneMapping(jid);
+        const manualName = this.getManualNameMapping(jid);
+
+        // 1. Determine Phone Number
+        let phone = manualPhone;
+        if (!phone) {
+            if (jid.includes('@s.whatsapp.net') && !isLid) {
+                phone = jid.split('@')[0];
+            } else if (chatData) {
+                // Try extracting from participant/metadata
+                const participant = chatData.lastMessage?.key?.participant ||
+                    chatData.lastMessage?.participant ||
+                    chatData.participant;
+                if (participant && participant.includes('@s.whatsapp.net')) {
+                    phone = participant.split('@')[0];
+                }
+            }
+        }
+        // Cleanup phone (numbers only)
+        if (phone) phone = phone.replace(/\D/g, '');
+
+        // 2. Determine Display Name
+        let name = manualName;
+        if (!name && chatData) {
+            name = chatData.name || chatData.pushName || chatData.verifiedName;
+        }
+
+        return {
+            id: jid,
+            phone: phone || null,
+            name: name || null,
+            isLid,
+            displayName: name || (phone ? `(31) ${phone.slice(-9, -4)}-${phone.slice(-4)}` : jid)
+        };
+    }
+
     async fetchChats() {
         const { instanceName } = useStore.getState();
         if (!instanceName) return [];
 
-        // v2 standard: POST to findChats
-        const data = await this.request(`/chat/findChats/${instanceName}`, 'POST', {});
+        console.log('🧹 AURA: Fetching and cleaning chats list...');
 
-        // Fetch Address Book to help resolve LIDs
-        const contactsList = await this.fetchContacts();
+        // 1. Fetch raw chats and address book contacts in parallel
+        const [rawChatsData, rawContacts] = await Promise.all([
+            this.request(`/chat/findChats/${instanceName}`, 'POST', {}),
+            this.fetchContacts()
+        ]);
+
+        const chatList = Array.isArray(rawChatsData) ? rawChatsData : (rawChatsData?.records || rawChatsData?.chats || []);
+        const contactList = Array.isArray(rawContacts) ? rawContacts : [];
+
+        // 2. Build a high-fidelity contacts map for recovery
         const contactsMap = new Map(); // Name -> JID
-        contactsList.forEach(c => {
+        contactList.forEach(c => {
             const jid = c.id || c.jid;
             const name = (c.name || c.pushName || "").trim();
             if (jid && jid.includes('@s.whatsapp.net') && name) {
-                contactsMap.set(name, jid);
+                contactsMap.set(name.toLowerCase(), jid);
             }
         });
 
-        const list = Array.isArray(data) ? data : (data?.records || data?.chats || []);
+        // 3. SECURE MERGING: Group by Canonical Identity
+        const mergedGroups = new Map(); // Canonical Phone or JID -> Chat Object
 
-        const phoneChats = new Map();
-        const lidChats = [];
-        const finalMap = new Map();
+        chatList.forEach(chat => {
+            const rawJid = chat.remoteJid || chat.jid || chat.id;
+            if (!rawJid) return;
 
-        // Pass 1: Segregate and Normalize
-        list.forEach(c => {
-            const rawJid = c.remoteJid || c.jid || c.id || c.key?.remoteJid;
-            if (!rawJid || typeof rawJid !== 'string') return;
+            // Normalize JID
+            const jid = rawJid.includes('@') ? rawJid : `${rawJid}@s.whatsapp.net`;
+            chat.id = jid;
+            chat.remoteJid = jid;
 
-            let jid = rawJid.includes('@') ? rawJid : `${rawJid}@s.whatsapp.net`;
-            c.id = jid;
-            c.remoteJid = jid;
+            // Resolve identity using all signals
+            let identity = this.resolveIdentity(jid, chat);
 
-            if (jid.includes('@lid')) {
-                lidChats.push(c);
+            // Recovery Strategy: If LID still has no phone, try search by Name in contacts map
+            if (identity.isLid && !identity.phone && identity.name) {
+                const recoveryJid = contactsMap.get(identity.name.toLowerCase());
+                if (recoveryJid) {
+                    identity.phone = recoveryJid.split('@')[0];
+                    console.log(`🕵️ AURA: Recovered LID ${jid} phone (${identity.phone}) via Address Book match`);
+                }
+            }
+
+            // Grouping key: Prefer phone number if known, otherwise fallback to JID
+            const key = identity.phone || jid;
+            const existing = mergedGroups.get(key);
+
+            if (!existing) {
+                // Initialize the merged object
+                mergedGroups.set(key, { ...chat, auraIdentity: identity });
             } else {
-                phoneChats.set(jid, c);
-                finalMap.set(jid, c);
-            }
-        });
-
-        // Pass 2: Merge LIDs into Phones (STRICTER)
-        lidChats.forEach(lidChat => {
-            let match = null;
-
-            // Strategy A: Exact Name Match (Only if name exists and is not empty)
-            const lidName = (lidChat.name || lidChat.pushName || "").trim();
-            if (lidName && lidName.length > 1) {
-                // 1. Try to find in active Phone Chats
-                for (const [pJid, pChat] of phoneChats.entries()) {
-                    const pName = (pChat.name || pChat.pushName || "").trim();
-                    if (pName === lidName) {
-                        match = pChat;
-                        break;
-                    }
-                }
-
-                // 2. If not found in chats, try to find in Address Book (Contacts)
-                if (!match && contactsMap.size > 0) {
-                    const contactJid = contactsMap.get(lidName);
-                    if (contactJid) {
-                        // We found the real phone number in contacts!
-                        // We don't have a chat object for it, so we stick with the LID chat
-                        // BUT we attach the real phone number to it for sending messages.
-                        lidChat.phoneNumber = contactJid.split('@')[0];
-                        console.log(`✅ Resolved LID ${lidChat.id} to Phone ${lidChat.phoneNumber} via Contacts`);
-                    }
-                }
-            }
-
-            // Strategy B: Profile Pic Match (Fallback)
-            if (!match && lidChat.profilePicUrl) {
-                for (const [pJid, pChat] of phoneChats.entries()) {
-                    if (pChat.profilePicUrl === lidChat.profilePicUrl) {
-                        match = pChat;
-                        break;
-                    }
-                }
-            }
-
-            if (match) {
-                // Identity Fusion: Use the newest timestamp
+                // IDENTITY FUSION: Merge newest content
                 const getTS = (c) => c.lastMessage?.messageTimestamp || c.messageTimestamp || c.conversationTimestamp || 0;
-                const lidTime = getTS(lidChat);
-                const matchTime = getTS(match);
-
-                if (lidTime > matchTime) {
-                    match.lastMessage = lidChat.lastMessage || match.lastMessage;
-                    match.messageTimestamp = lidTime;
+                if (getTS(chat) > getTS(existing)) {
+                    // Chat is newer, update main message info but keep the best JID
+                    const bestJid = existing.id.includes('@s.whatsapp.net') && !existing.isLid ? existing.id : chat.id;
+                    mergedGroups.set(key, { ...chat, id: bestJid, remoteJid: bestJid, auraIdentity: identity });
                 }
-                match.linkedLid = lidChat.id;
-                match.unreadCount = (match.unreadCount || 0) + (lidChat.unreadCount || 0);
-            } else {
-                // Keep LID if not merged
-                finalMap.set(lidChat.id, lidChat);
+                // Accumulate unread
+                existing.unreadCount = (existing.unreadCount || 0) + (chat.unreadCount || 0);
             }
         });
 
-        // 3. Sort by Real Activity (Last Message Timestamp)
-        return Array.from(finalMap.values()).sort((a, b) => {
-            const getT = (c) => {
-                // messageTimestamp is in seconds from API, convert to ms
-                const ts = c.lastMessage?.messageTimestamp || c.messageTimestamp || c.conversationTimestamp || 0;
-                return ts * 1000;
-            };
-
-            const timeA = getT(a);
-            const timeB = getT(b);
-
-            return timeB - timeA;
-        });
+        // 4. FINAL SORT and CLEANUP
+        return Array.from(mergedGroups.values())
+            .map(c => ({
+                ...c,
+                name: c.auraIdentity.displayName || c.name // Ensure UI uses the best name
+            }))
+            .sort((a, b) => {
+                const getT = (c) => (c.lastMessage?.messageTimestamp || c.messageTimestamp || c.conversationTimestamp || 0);
+                return getT(b) - getT(a);
+            });
     }
 
     async fetchContacts() {
@@ -315,77 +347,72 @@ class WhatsAppService {
         }
     }
 
-    async fetchMessages(jid, linkedJid = null) {
+    async fetchMessages(jid, count = 50) {
         const { instanceName } = useStore.getState();
-        const cleanJid = this.standardizeJid(jid);
-        if (!instanceName || !cleanJid) return [];
+        if (!instanceName || !jid) return [];
 
-        const tryFetch = async (targetJid) => {
-            if (!targetJid) return [];
-            try {
-                const data = await this.request(`/chat/findMessages/${instanceName}`, 'POST', {
-                    where: {
-                        key: {
-                            remoteJid: targetJid
-                        }
-                    },
-                    limit: 500 // Maximum limit to capture full history
-                });
-                const list = data?.messages?.records || data?.records || data?.messages || [];
-                return Array.isArray(list) ? list : [];
-            } catch (e) {
-                console.error(`Error fetching messages for ${targetJid}:`, e);
-                return [];
-            }
+        try {
+            // Priority: Fetch from the actual JID
+            const response = await this.request(`/chat/findMessages/${instanceName}`, 'POST', {
+                remoteJid: jid,
+                count: count
+            });
+            const msgs = Array.isArray(response) ? response : (response?.records || response?.messages || []);
+
+            // CLEANUPS: Evolution API v2 sometimes returns messages with wrong keys
+            return msgs.map(m => ({
+                ...m,
+                key: m.key || { remoteJid: jid, fromMe: false, id: m.id }
+            }));
+        } catch (e) {
+            console.error("fetchMessages Error:", e);
+            return [];
+        }
+    }
+
+    async ensurePhoneNumber(jid, chatData = null) {
+        // Use centralized resolver
+        const identity = this.resolveIdentity(jid, chatData);
+        if (identity.phone) return identity.phone;
+
+        // Fallback: LID with no discovery yet? Return raw JID for Evolution API to handle
+        if (identity.isLid) {
+            console.warn(`⚠️ Sending blind to LID ${jid} - No phone mapping found.`);
+            return jid;
+        }
+
+        return jid; // Just return it and hope for the best
+    }
+
+    async sendMessage(jid, text, chatData = null) {
+        const { instanceName } = useStore.getState();
+        if (!instanceName || !jid || !text) return null;
+
+        // Fetch number (Discovery)
+        const recipient = await this.ensurePhoneNumber(jid, chatData);
+
+        const payload = {
+            number: recipient,
+            text: text,
+            linkPreview: true
         };
 
-        // 1. Fetch Main JID
-        let messages = await tryFetch(cleanJid);
+        const response = await this.request(`/message/sendText/${instanceName}`, 'POST', payload);
 
-        // 2. Fetch Linked LID (if exists) - The "Missing Audio" Recovery
-        if (linkedJid) {
-            const lidMessages = await tryFetch(this.standardizeJid(linkedJid));
-            if (lidMessages.length > 0) {
-                // Merge and Deduplicate by Message Key ID
-                const seen = new Set(messages.map(m => m.key?.id));
-                lidMessages.forEach(m => {
-                    if (!seen.has(m.key?.id)) {
-                        messages.push(m);
-                    }
+        if (response?.error) {
+            // Fallback for newer Evolution API versions that might expect 'remoteJid' instead of 'number'
+            if (response.status === 400 || response.status === 404) {
+                return await this.request(`/message/sendText/${instanceName}`, 'POST', {
+                    remoteJid: recipient,
+                    text: text
                 });
             }
         }
 
-        // 3. Fallback: Brazilian 9-digit heuristic (only if NO linkedJid was known)
-        if (messages.length === 0 && !linkedJid && cleanJid.startsWith('55')) {
-            const number = cleanJid.split('@')[0];
-            const alt = number.length === 13 ? number.slice(0, 4) + number.slice(5) :
-                (number.length === 12 ? number.slice(0, 4) + '9' + number.slice(4) : null);
-            if (alt) {
-                const altMsgs = await tryFetch(`${alt}@s.whatsapp.net`);
-                messages = [...messages, ...altMsgs];
-            }
-        }
-
-        // 4. Sort by Timestamp Descending (Newest first)
-        return messages.sort((a, b) => {
-            const tA = a.messageTimestamp || 0;
-            const tB = b.messageTimestamp || 0;
-            return tB - tA;
-        });
+        return response;
     }
 
-    // PHONE NUMBER EXTRACTION & MANAGEMENT
-    getManualPhoneMapping(jid) {
-        try {
-            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
-            return mappings[jid] || null;
-        } catch (e) {
-            console.error('Error reading phone mappings:', e);
-            return null;
-        }
-    }
-
+    // --- LEGACY CLEANUP ---
     setManualPhoneMapping(jid, phoneNumber) {
         try {
             const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
@@ -394,7 +421,6 @@ class WhatsAppService {
             console.log(`✅ Saved phone mapping: ${jid} → ${phoneNumber}`);
             return true;
         } catch (e) {
-            console.error('Error saving phone mapping:', e);
             return false;
         }
     }
@@ -407,187 +433,8 @@ class WhatsAppService {
             console.log(`✅ Saved name mapping: ${jid} → ${name}`);
             return true;
         } catch (e) {
-            console.error('Error saving name mapping:', e);
             return false;
         }
-    }
-
-    getManualNameMapping(jid) {
-        try {
-            const mappings = JSON.parse(localStorage.getItem('contactNameMap') || '{}');
-            return mappings[jid] || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    extractPhoneNumber(jid, chatData = null) {
-        if (!jid) return null;
-
-        // Priority 1: Regular phone number JID (e.g., "5531992957555@s.whatsapp.net")
-        if (jid.includes('@s.whatsapp.net') && !jid.includes('@lid')) {
-            const phone = jid.split('@')[0];
-            // Validate it's actually a phone number (10-15 digits)
-            if (/^\d{10,15}$/.test(phone)) {
-                return phone;
-            }
-        }
-
-        // Priority 2: Extract from chat metadata (for @lid contacts)
-        if (chatData) {
-            // Check participant field (often contains the real phone number)
-            const participant = chatData.lastMessage?.key?.participant ||
-                chatData.lastMessage?.participant ||
-                chatData.participant;
-
-            if (participant && participant.includes('@s.whatsapp.net')) {
-                const phone = participant.split('@')[0];
-                if (/^\d{10,15}$/.test(phone)) {
-                    console.log(`✅ Extracted phone from participant: ${phone}`);
-                    return phone;
-                }
-            }
-
-            // Check remoteJid variations
-            const remoteJid = chatData.lastMessage?.key?.remoteJid || chatData.remoteJid;
-            if (remoteJid && remoteJid.includes('@s.whatsapp.net') && !remoteJid.includes('@lid')) {
-                const phone = remoteJid.split('@')[0];
-                if (/^\d{10,15}$/.test(phone)) {
-                    console.log(`✅ Extracted phone from remoteJid: ${phone}`);
-                    return phone;
-                }
-            }
-
-            // Diagnostic logging for @lid contacts
-            if (jid.includes('@lid')) {
-                console.log('🔍 @lid contact metadata:', {
-                    jid,
-                    participant: chatData.lastMessage?.key?.participant,
-                    remoteJid: chatData.lastMessage?.key?.remoteJid,
-                    availableFields: Object.keys(chatData)
-                });
-            }
-        }
-
-        // Priority 3: Manual mapping from localStorage
-        const manualPhone = this.getManualPhoneMapping(jid);
-        if (manualPhone) {
-            console.log(`✅ Using manual mapping: ${manualPhone}`);
-            return manualPhone;
-        }
-
-        // Priority 4: No phone number found
-        console.warn(`⚠️ Could not extract phone number for: ${jid}`);
-        return null;
-    }
-
-    async ensurePhoneNumber(jid, chatData = null) {
-        // 1. Try synchronous extraction first (Fastest)
-        let phoneNumber = this.extractPhoneNumber(jid, chatData);
-        if (phoneNumber) return phoneNumber;
-
-        // 2. If valid chatData exists, try scanning its history via API
-        if (chatData || jid) {
-            console.log(`🕵️ Smart Scan: Searching phone number for ${jid}...`);
-
-            // Fetch last 50 messages to find a participant
-            const messages = await this.fetchMessages(jid);
-            if (messages && messages.length > 0) {
-                for (const msg of messages) {
-                    const participant = msg.key?.participant || msg.participant;
-                    const remoteJid = msg.key?.remoteJid || msg.remoteJid;
-
-                    // Check if it's a valid phone JID
-                    const potential = [participant, remoteJid].find(p => p && p.includes('@s.whatsapp.net') && !p.includes('@lid'));
-
-                    if (potential) {
-                        const extracted = potential.split('@')[0];
-                        if (/^\d{10,15}$/.test(extracted)) {
-                            console.log(`✅ Smart Scan FOUND: ${extracted} in message from ${new Date(msg.messageTimestamp * 1000).toLocaleString()}`);
-
-                            // Auto-save the mapping!
-                            this.setManualPhoneMapping(jid, extracted);
-                            return extracted;
-                        }
-                    }
-                }
-            } else {
-                console.log(`🕵️ Smart Scan: No messages found for ${jid}`);
-            }
-
-            // 3. DEEP HUNT: Search Address Book by Name (Last Resort)
-            const targetName = (chatData?.name || chatData?.pushName || chatData?.verifiedName);
-            if (targetName) {
-                console.log(`🕵️ Deep Hunt: Searching Address Book for "${targetName}"...`);
-                try {
-                    const contacts = await this.fetchContacts();
-                    if (Array.isArray(contacts)) {
-                        const cleanName = (n) => String(n || "").toLowerCase().trim();
-                        const searchName = cleanName(targetName);
-
-                        const match = contacts.find(c => {
-                            const cName = cleanName(c.name || c.pushName);
-                            return cName === searchName && c.id && c.id.includes('@s.whatsapp.net') && !c.id.includes('@lid');
-                        });
-
-                        if (match) {
-                            const extracted = match.id.split('@')[0];
-                            console.log(`✅ Deep Hunt FOUND via Contact Name: ${extracted}`);
-                            this.setManualPhoneMapping(jid, extracted);
-                            return extracted;
-                        }
-                    }
-                } catch (e) {
-                    console.error("Deep Hunt Error:", e);
-                }
-            }
-        }
-
-        // 4. FINAL FALLBACK: Blind Send (Return the LID/JID itself)
-        if (jid) {
-            console.warn(`⚠️ All resolution strategies failed for ${jid}. Using Raw JID for Blind Send.`);
-            return jid; // Return the LID so Evolution API tries to send anyway
-        }
-
-        return null;
-    }
-
-    async sendMessage(jid, text, chatData = null) {
-        const { instanceName, chats } = useStore.getState();
-        if (!instanceName || !jid || !text) return null;
-
-        // Fetch complete chat data from store if not provided
-        if (!chatData && chats) {
-            chatData = chats.find(c => (c.id === jid || c.remoteJid === jid || c.jid === jid));
-            console.log('📦 Fetched chat data from store:', chatData ? 'Found' : 'Not found', jid);
-        }
-
-        // CRITICAL: Extract phone number with Smart Scan Fallback
-        const phoneNumber = await this.ensurePhoneNumber(jid, chatData);
-
-        if (!phoneNumber) {
-            return {
-                error: true,
-                message: `❌ Número de telefone não encontrado nem no histórico.\n\nClique no ícone de edição (✏️) ao lado do nome para adicionar o número manualmente.`,
-                needsPhoneNumber: true,
-                jid: jid
-            };
-        }
-
-        const result = await this.request(`/message/sendText/${instanceName}`, 'POST', {
-            number: phoneNumber,
-            text: text
-        });
-
-        // Check for "number doesn't exist" error
-        if (result?.response?.message?.[0]?.exists === false) {
-            return {
-                error: true,
-                message: `Número ${phoneNumber} não existe no WhatsApp ou não está acessível.`
-            };
-        }
-
-        return result;
     }
 
     async sendMedia(jid, file, caption = '', isAudio = false) {

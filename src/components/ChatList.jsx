@@ -29,27 +29,7 @@ const ChatList = ({ onOpenMenu }) => {
     // Filter out archived chats
     const archivedChats = JSON.parse(localStorage.getItem('archived_chats') || '[]');
 
-    const deduplicated = (Array.isArray(chats) ? chats : [])
-        .reduce((acc, chat) => {
-            const jid = chat.remoteJid || chat.jid || chat.id;
-            const phone = WhatsAppService.extractPhoneNumber(jid, chat) || jid;
-            
-            // Prefer regular WhatsApp JID over LID
-            const isLid = jid.includes('@lid');
-            const existing = acc[phone];
-
-            if (!existing || (existing.isLid && !isLid)) {
-                acc[phone] = { ...chat, isLid };
-            } else if (existing.isLid === isLid) {
-                // Same type, keep most recent
-                if (getTimestamp(chat) > getTimestamp(existing)) {
-                    acc[phone] = { ...chat, isLid };
-                }
-            }
-            return acc;
-        }, {});
-
-    const filtered = Object.values(deduplicated)
+    const filtered = (Array.isArray(chats) ? chats : [])
         .filter(c => {
             const jid = c.remoteJid || c.jid || c.id;
             // Exclude archived chats from main list
@@ -97,17 +77,9 @@ const ChatList = ({ onOpenMenu }) => {
                     const jid = chat.remoteJid || chat.jid || chat.id;
                     const msg = chat.lastMessage?.message || chat.message || {};
 
-                    // Improved Name Source Priority (Filter out "Você" which means self)
-                    // Priority 1: Manually saved name
-                    let name = WhatsAppService.getManualNameMapping(jid) || [
-                        chat.name,
-                        chat.pushName,
-                        chat.verifiedName,
-                        chat.lastMessage?.pushName,
-                        chat.lastMessage?.key?.participant
-                    ].find(n => n && n !== 'Você' && !n.includes('@lid'));
-
-                    let photo = chat.profilePicUrl || chat.profilePictureUrl || chat.profile || chat.avatar;
+                    // Trusts the name already resolved by the service layer
+                    const name = chat.name || formatJid(jid);
+                    const photo = chat.profilePicUrl || chat.profilePictureUrl || chat.profile || chat.avatar;
                     const hasName = name && name !== String(jid).split('@')[0];
 
                     return (

@@ -524,7 +524,12 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                         >
                             <ChevronLeft size={24} color="var(--accent-primary)" />
                         </button>
-                        <h3 style={{ margin: 0 }}>{WhatsAppService.getManualNameMapping(activeChat.id) || (activeChat.name && activeChat.name !== formatJid(activeChat.id) ? activeChat.name : formatJid(activeChat.id))}</h3>
+                        <h3 style={{ margin: 0 }}>
+                            {(() => {
+                                const identity = WhatsAppService.resolveIdentity(activeChat.id, activeChat);
+                                return identity.displayName || formatJid(activeChat.id);
+                            })()}
+                        </h3>
                         {chatTags[activeChat.id] && (() => {
                             const tag = tags.find(t => t.id === chatTags[activeChat.id]);
                             if (tag) {
@@ -551,8 +556,9 @@ const ChatArea = ({ isArchived = false, onBack }) => {
 
                         <button
                             onClick={() => {
-                                const currentName = WhatsAppService.getManualNameMapping(activeChat.id) || activeChat.name || activeChat.pushName || "";
-                                const currentPhone = WhatsAppService.extractPhoneNumber(activeChat.id, activeChat) || "";
+                                const identity = WhatsAppService.resolveIdentity(activeChat.id, activeChat);
+                                const currentName = identity.name || "";
+                                const currentPhone = identity.phone || "";
 
                                 // Use React dialog instead of window.prompt
                                 openPrompt("Editar Contato (Nome | Número)", `${currentName} | ${currentPhone}`, (input) => {
