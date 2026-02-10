@@ -132,9 +132,14 @@ ${extraContext ? `DADOS TÉCNICOS (RAG): ${extraContext}` : ''}
         // Skip check here to try proxy first
 
         const systemPrompt = `
-            Você é consultor de vendas EXPERT. Analise a conversa e sugira 2-3 passos PRÁTICOS.
+            Você é consultor de vendas EXPERT. Analise a conversa e gere um relatório CRM.
             HISTÓRICO: ${chatHistory}
-            RETORNE JSON: { "steps": [], "priority": "high|medium|low", "reasoning": "" }
+            RETORNE JSON: { 
+                "temperature": "quente|morno|frio", 
+                "summary": "Resumo de 1 frase", 
+                "steps": ["Passo 1", "Passo 2"], 
+                "priority": "high|medium|low" 
+            }
             `.trim();
 
         const payload = {

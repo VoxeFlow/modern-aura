@@ -31,21 +31,48 @@ const CRMView = () => {
                 </div>
             </div>
 
-            <div className="crm-board">
-                {tags.map(tag => {
-                    const tagChats = chats.filter(c => {
-                        const jid = c.remoteJid || c.jid || c.id;
-                        return chatTags[jid] === tag.id;
-                    });
+            <div className="crm-board" style={{ overflowX: 'auto', paddingBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '20px', minWidth: 'min-content' }}>
+                    {tags.map(tag => {
+                        const tagChats = chats.filter(c => {
+                            const jid = c.remoteJid || c.jid || c.id;
+                            return chatTags[jid] === tag.id;
+                        });
 
-                    return (
-                        <CRMColumn
-                            key={tag.id}
-                            tag={tag}
-                            chats={tagChats}
-                        />
-                    );
-                })}
+                        return (
+                            <CRMColumn
+                                key={tag.id}
+                                tag={tag}
+                                chats={tagChats}
+                            />
+                        );
+                    })}
+
+                    {/* ADD COLUMN BUTTON */}
+                    <button
+                        onClick={() => useStore.getState().addCRMColumn("Nova Etapa")}
+                        style={{
+                            minWidth: '300px',
+                            height: '60px',
+                            borderRadius: '20px',
+                            border: '2px dashed #E5E5E7',
+                            background: 'transparent',
+                            color: '#86868b',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.borderColor = '#E5E5E7'; e.currentTarget.style.color = '#86868b'; }}
+                    >
+                        + Adicionar Etapa
+                    </button>
+                </div>
             </div>
         </div>
     );

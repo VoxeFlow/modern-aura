@@ -120,27 +120,46 @@ const CRMCard = ({ chat, tag }) => {
             {nextSteps && (
                 <div className="next-steps" style={{
                     background: '#f8fafc',
-                    borderRadius: '6px',
-                    padding: '10px',
+                    borderRadius: '8px',
+                    padding: '12px',
                     marginBottom: '10px',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    border: '1px solid #e2e8f0'
                 }}>
-                    <h5 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: '600', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Próximos Passos:
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: '800', color: '#1d1d1f', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>
+                            ANÁLISE AURA
+                        </span>
+                        {/* TEMPERATURE BADGE */}
+                        {nextSteps.temperature && (
+                            <span style={{
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                padding: '2px 8px',
+                                borderRadius: '10px',
+                                background: nextSteps.temperature === 'quente' ? '#fee2e2' : (nextSteps.temperature === 'frio' ? '#e2e8f0' : '#fef3c7'),
+                                color: nextSteps.temperature === 'quente' ? '#ef4444' : (nextSteps.temperature === 'frio' ? '#64748b' : '#d97706')
+                            }}>
+                                {nextSteps.temperature === 'quente' ? '🔥 QUENTE' : (nextSteps.temperature === 'frio' ? '❄️ FRIO' : '🌡️ MORNO')}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* SUMMARY */}
+                    {nextSteps.summary && (
+                        <div style={{ marginBottom: '8px', fontStyle: 'italic', color: '#475569', lineHeight: '1.4' }}>
+                            "{nextSteps.summary}"
+                        </div>
+                    )}
+
+                    <h5 style={{ margin: '8px 0 4px 0', fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>
+                        SUGESTÃO:
                     </h5>
-                    <ul style={{ margin: '0', paddingLeft: '18px', color: 'var(--text-main)' }}>
-                        {nextSteps.steps.map((step, i) => (
-                            <li key={i} style={{ marginBottom: '4px', lineHeight: '1.4' }}>{step}</li>
+                    <ul style={{ margin: '0', paddingLeft: '15px', color: '#334155' }}>
+                        {nextSteps.steps?.map((step, i) => (
+                            <li key={i} style={{ marginBottom: '3px', lineHeight: '1.4' }}>{step}</li>
                         ))}
                     </ul>
-                    <div style={{
-                        marginTop: '8px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        color: getPriorityColor(nextSteps.priority)
-                    }}>
-                        {getPriorityLabel(nextSteps.priority)}
-                    </div>
                 </div>
             )}
 

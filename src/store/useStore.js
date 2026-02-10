@@ -148,6 +148,16 @@ export const useStore = create(
                 const exists = state.messages.some((item) => getMessageIdentity(item) === incomingFp);
                 if (exists) return;
 
+                // AUTO-TAGGING: If this chat has no tag, assign the first one (Novo Lead)
+                const chatId = record.key?.remoteJid || record.remoteJid;
+                if (chatId && !state.chatTags[chatId] && state.tags.length > 0) {
+                    // Check if it's already in the chats list to avoid re-tagging known errors, but generally safe
+                    console.log(`AURA CRM: Auto-tagging new lead ${chatId} to ${state.tags[0].name}`);
+                    set(prev => ({
+                        chatTags: { ...prev.chatTags, [chatId]: prev.tags[0].id }
+                    }));
+                }
+
                 set({ messages: [record, ...state.messages] });
             },
 
@@ -180,6 +190,18 @@ export const useStore = create(
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('aura-storage'); // Nuke state persistence
             },
+
+            // CRM ACTIONS
+            addCRMColumn: (name) => set(state => {
+                const newId = `col-${Date.now()}`;
+                return {
+                    tags: [...state.tags, { id: newId, name, icon: '📁', color: '#86868b' }]
+                };
+            }),
+
+            updateCRMColumn: (id, updates) => set(state => ({
+                tags: state.tags.map(t => t.id === id ? { ...t, ...updates } : t)
+            })),
 
             // CRM Actions
             setTag: (chatId, tagId) => set(state => ({
@@ -222,6 +244,7 @@ export const useStore = create(
                 ragSources: state.ragSources,
                 currentView: state.currentView,
                 chats: state.chats,
+                tags: state.tags, // NOW PERSISTED FOR CUSTOMIZATION
                 chatTags: state.chatTags, // Persist tags
                 chatNextSteps: state.chatNextSteps, // Persist AI suggestions
                 managerPhone: state.managerPhone,
