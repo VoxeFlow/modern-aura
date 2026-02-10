@@ -253,6 +253,16 @@ export const useStore = create(
                 chatNextSteps: { ...state.chatNextSteps, [chatId]: data }
             })),
 
+            resetBrain: () => {
+                console.log('AURA: Performing lobotomy (Reset Brain)...');
+                set({
+                    knowledgeBase: [],
+                    briefing: '',
+                    ragSources: [],
+                    currentView: 'interview' // Force back to interview mode
+                });
+            },
+
             getChatsWithTag: (tagId) => {
                 const state = get();
                 return state.chats.filter(c => {

@@ -128,7 +128,13 @@ const BriefingModal = ({ isOpen, onClose }) => {
                     </div>
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <button
-                            onClick={() => { if (confirm("Deseja apagar o conhecimento atual e começar uma nova entrevista?")) { setKnowledgeBase([]); setConfig({ briefing: '' }); setView('interview'); setStatus('idle'); } }}
+                            onClick={() => {
+                                if (confirm("⚠️ TEM CERTEZA?\n\nIsso apagará todo o conhecimento que a AURA tem sobre sua empresa e reiniciará a entrevista.")) {
+                                    useStore.getState().resetBrain();
+                                    setStatus('idle');
+                                    setView('interview'); // Redundant but safe
+                                }
+                            }}
                             style={{ background: '#FFF5F5', color: '#ff4d4d', border: '1px solid #FFEBEB', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                         >
                             Resetar Cérebro
