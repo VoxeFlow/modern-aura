@@ -105,7 +105,7 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                         </button>
 
                         <div style={{ fontSize: '10px', opacity: 0.3, marginTop: '10px', color: 'var(--text-muted)' }}>
-                            v11.3.2.v2
+                            v11.3.3.fixed
                         </div>
 
                         <div className="conn-status" style={{ fontSize: '8px', opacity: 0.3, marginTop: '2px', textAlign: 'center', wordBreak: 'break-all', padding: '0 5px' }}>

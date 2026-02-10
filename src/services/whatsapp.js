@@ -1080,7 +1080,10 @@ class WhatsAppService {
         if (!instanceName || !jid || !file) return null;
 
         try {
-            const cleanJid = this.standardizeJid(jid);
+            // Strip internal prefixes from our deduplication logic
+            let rawJid = String(jid).replace(/^(phone:|jid:)/, '');
+            const cleanJid = this.standardizeJid(rawJid);
+
             if (!cleanJid) return null;
 
             // Convert file to base64
@@ -1110,6 +1113,21 @@ class WhatsAppService {
                 fileName: file.name,
                 media: base64
             };
+
+            // Options for Audio PTT (Voice Note)
+            if (mediatype === 'audio') {
+                payload.ptt = true;     // Evolution v1 legacy
+                payload.options = {     // Evolution v2
+                    ptt: true,
+                    delay: 1200,
+                    presence: 'recording'
+                };
+            } else {
+                payload.options = {
+                    delay: 1200,
+                    presence: 'composing'
+                };
+            }
 
             return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
         } catch (e) {
