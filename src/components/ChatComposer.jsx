@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Paperclip, Wand2, Send, Mic, Image, Camera, FileText } from 'lucide-react';
 
 const ChatComposer = ({
     showAttachMenu,
     setShowAttachMenu,
-    handleAttachmentClick,
+    handleFileSelect,
+    handleAttachmentMenuOpen,
     handleSend,
     input,
     setInput,
@@ -14,8 +15,40 @@ const ChatComposer = ({
     recording,
     handleMicClick,
 }) => {
+    const fileInputRef = useRef(null);
+
+    const handleOptionClick = (type) => {
+        if (!fileInputRef.current) return;
+
+        // Configure input based on type
+        if (type === 'Fotos/Vídeos') {
+            fileInputRef.current.accept = 'image/*,video/*';
+            fileInputRef.current.removeAttribute('capture');
+        } else if (type === 'Documento') {
+            fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,.xlsx,.xls';
+            fileInputRef.current.removeAttribute('capture');
+        } else if (type === 'Câmera') {
+            fileInputRef.current.accept = 'image/*';
+            fileInputRef.current.capture = 'environment';
+        }
+
+        setShowAttachMenu(false);
+        // Small timeout to ensure menu closes visually before system dialog opens (optional but smoother)
+        setTimeout(() => {
+            fileInputRef.current.click();
+        }, 50);
+    };
+
     return (
         <form className="message-input-area" onSubmit={handleSend} style={{ position: 'relative' }}>
+            {/* Hidden Permanent File Input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+            />
+
             {showAttachMenu && (
                 <div
                     className="attach-menu glass-panel"
@@ -42,7 +75,7 @@ const ChatComposer = ({
                     <button
                         type="button"
                         className="menu-item-v5"
-                        onClick={() => { handleAttachmentClick('Fotos/Vídeos'); setShowAttachMenu(false); }}
+                        onClick={() => handleOptionClick('Fotos/Vídeos')}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -70,7 +103,7 @@ const ChatComposer = ({
                     <button
                         type="button"
                         className="menu-item-v5"
-                        onClick={() => { handleAttachmentClick('Câmera'); setShowAttachMenu(false); }}
+                        onClick={() => handleOptionClick('Câmera')}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -98,7 +131,7 @@ const ChatComposer = ({
                     <button
                         type="button"
                         className="menu-item-v5"
-                        onClick={() => { handleAttachmentClick('Documento'); setShowAttachMenu(false); }}
+                        onClick={() => handleOptionClick('Documento')}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -128,7 +161,7 @@ const ChatComposer = ({
             <button
                 type="button"
                 className="btn-icon"
-                onClick={() => setShowAttachMenu(!showAttachMenu)}
+                onClick={handleAttachmentMenuOpen}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 5px' }}
             >
                 <Paperclip size={22} />
