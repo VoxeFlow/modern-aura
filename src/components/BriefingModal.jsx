@@ -129,10 +129,10 @@ const BriefingModal = ({ isOpen, onClose }) => {
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <button
                             onClick={() => {
-                                if (confirm("⚠️ TEM CERTEZA?\n\nIsso apagará todo o conhecimento que a AURA tem sobre sua empresa e reiniciará a entrevista.")) {
+                                if (window.confirm("⚠️ TEM CERTEZA?\n\nIsso apagará TODO o conhecimento da AURA e reiniciará o sistema.")) {
                                     useStore.getState().resetBrain();
-                                    setStatus('idle');
-                                    setView('interview'); // Redundant but safe
+                                    // FORCE REFRESH to ensure nuclear wipe effective immediately
+                                    setTimeout(() => window.location.reload(), 100);
                                 }
                             }}
                             style={{ background: '#FFF5F5', color: '#ff4d4d', border: '1px solid #FFEBEB', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
