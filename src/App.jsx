@@ -11,8 +11,10 @@ import LoginScreen from './components/LoginScreen';
 import LandingPage from './pages/LandingPage'; // SALES LANDING PAGE
 import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
+import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 
 const App = () => {
+  useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
   const { isConnected, setIsConnected, currentView, briefing, setChats, activeChat, setActiveChat } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);

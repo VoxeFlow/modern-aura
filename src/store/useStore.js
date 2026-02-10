@@ -106,6 +106,10 @@ export const useStore = create(
             chatTags: {}, // { chatId: tagId }
             chatNextSteps: {}, // { chatId: { steps: [], priority: '', reasoning: '' } }
 
+            // AURA v11: Knowledge Loop
+            managerPhone: '', // The specialist/manager WhatsApp number
+            pendingGaps: {}, // { gapId: { chatId, question, timestamp } }
+
             setConfig: (config) => set((state) => ({ ...state, ...config })),
             setChats: (chats) => {
                 console.log(`AURA: Updating store with ${chats?.length || 0} chats`);
@@ -274,7 +278,9 @@ export const useStore = create(
                 currentView: state.currentView,
                 chats: state.chats,
                 chatTags: state.chatTags, // Persist tags
-                chatNextSteps: state.chatNextSteps // Persist AI suggestions
+                chatNextSteps: state.chatNextSteps, // Persist AI suggestions
+                managerPhone: state.managerPhone,
+                pendingGaps: state.pendingGaps
             }),
         }
     )

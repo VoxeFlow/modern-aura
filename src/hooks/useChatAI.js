@@ -36,8 +36,40 @@ export function useChatAI({ activeChat, messages, briefing, setInput }) {
             });
 
             if (aiRes) {
-                setAnalysisData(deriveAnalysisData(aiRes));
-                setSuggestion(aiRes.trim());
+                // AURA v11: Knowledge Gap Detection
+                if (aiRes.includes('[KNOWLEDGE_GAP:')) {
+                    const managerQuestion = aiRes.match(/\[KNOWLEDGE_GAP:\s*(.*?)]/)?.[1] || 'Pergunta não identificada';
+                    const { managerPhone, setConfig, pendingGaps } = useStore.getState();
+
+                    if (managerPhone) {
+                        setSuggestion(`🧠 AURA identificou uma lacuna no cérebro. Consultando especialista através do WhatsApp...`);
+
+                        // Send message to manager
+                        const WhatsAppService = (await import('../services/whatsapp')).default;
+                        const managerMsg = `🚨 *AURA: Nova Dúvida de Lead*\n\nUm lead perguntou algo que não sei responder.\n\n*Pergunta para você:* ${managerQuestion}\n\n_Responda esta mensagem para atualizar meu cérebro automaticamente._`;
+
+                        await WhatsAppService.sendMessage(managerPhone, managerMsg);
+
+                        // Track pending gap
+                        const gapId = `gap-${Date.now()}`;
+                        setConfig({
+                            pendingGaps: {
+                                ...pendingGaps,
+                                [managerPhone.replace(/\D/g, '')]: {
+                                    id: gapId,
+                                    chatId: activeChat.id,
+                                    question: managerQuestion,
+                                    timestamp: Date.now()
+                                }
+                            }
+                        });
+                    } else {
+                        setSuggestion(`⚠️ AURA precisa saber: "${managerQuestion}". (Configure o telefone do gestor nas configurações para automatizar isso).`);
+                    }
+                } else {
+                    setAnalysisData(deriveAnalysisData(aiRes));
+                    setSuggestion(aiRes.trim());
+                }
             } else {
                 setSuggestion('Não foi possível gerar uma sugestão no momento. Tente novamente.');
             }

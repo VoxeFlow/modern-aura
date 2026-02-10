@@ -17,7 +17,7 @@ class RAGService {
 
         // 1. Check Briefing (Core Knowledge)
         if (briefing && (cleanQuery.includes('quem') || cleanQuery.includes('clinica') || cleanQuery.includes('onde'))) {
-            context += `\n[Info Clínica]: ${briefing.substring(0, 500)}`;
+            context += `\n[IDENTIDADE DO NEGÓCIO]: ${briefing.substring(0, 1000)}`;
         }
 
         // 2. Check specialist RAG Sources (Future: Vector Search)
@@ -40,7 +40,7 @@ class RAGService {
 
             if (matches) {
                 console.log(`AURA RAG: ✅ Match encontrado! Fonte: ${source.name}`);
-                context += `\n[Especialista - ${source.name}]: ${source.content}`;
+                context += `\n[DADO TÉCNICO ESPECIALISTA - ${source.name.toUpperCase()}]: ${source.content}`;
             }
         });
 
