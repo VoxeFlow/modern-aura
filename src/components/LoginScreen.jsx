@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import logoLight from '../assets/logo-light.png';
+import logoDark from '../assets/logo-dark.png';
 import './LoginScreen.css';
 
 export default function LoginScreen({ onLogin }) {
