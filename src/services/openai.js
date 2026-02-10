@@ -70,11 +70,10 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
         });
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${openaiKey}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     model: 'gpt-4o',
@@ -86,7 +85,7 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
 
             const data = await response.json();
             if (data.error) {
-                console.error("AURA AI API Error:", data.error);
+                console.error("AURA AI Proxy Error:", data.error);
                 return null;
             }
 
@@ -95,14 +94,15 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
 
             return result;
         } catch (e) {
-            console.error("AURA AI API Fetch Error:", e);
+            console.error("AURA AI Proxy Fetch Error:", e);
             return null;
         }
     }
 
     async enhanceMessage(text, context = {}) {
         const openaiKey = MASTER_AI_KEY;
-        if (!openaiKey || !text.trim()) return text;
+        // Note: For enhanceMessage, we can try proxy first, or client side if proxy fails? 
+        // Let's stick to proxy for consistency with the user's requirement.
 
         const systemPrompt = `
             Você é o Consultor de Vendas Sênior da AURA. Sua missão é refinar a mensagem do usuário para que ela soe mais humana, persuasiva e profissional, mantendo o Rapport e aplicando SPIN Selling.
@@ -120,11 +120,10 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
             `.trim();
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${openaiKey}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     model: 'gpt-4o', // Using GPT-4o for better intent detection
@@ -139,13 +138,13 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
 
             const data = await response.json();
             if (data.error) {
-                console.error("AURA AI API Error:", data.error);
+                console.error("AURA AI Proxy Error:", data.error);
                 return text;
             }
 
             return data.choices[0].message.content.trim();
         } catch (e) {
-            console.error("AURA AI API Fetch Error:", e);
+            console.error("AURA AI Proxy Fetch Error:", e);
             return text;
         }
     }
@@ -233,6 +232,7 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
     }
 
     async generateNextBriefingQuestion(currentAnswers) {
+        // useStore check removed, logic kept simple
         const openaiKey = MASTER_AI_KEY;
         if (!openaiKey) return "Qual o próximo detalhe importante do seu negócio?";
 

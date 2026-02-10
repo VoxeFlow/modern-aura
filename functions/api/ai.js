@@ -11,10 +11,11 @@ export async function onRequest(context) {
 
     try {
         const body = await request.json();
-        const apiKey = env.VITE_OPENAI_API_KEY;
+        // Support both naming conventions
+        const apiKey = env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY;
 
         if (!apiKey) {
-            return new Response(JSON.stringify({ error: "OpenAI API Key not configured in Cloudflare environment" }), {
+            return new Response(JSON.stringify({ error: "OpenAI API Key not configured in Cloudflare environment (Checked VITE_OPENAI_API_KEY and OPENAI_API_KEY)" }), {
                 status: 500,
                 headers: { "Content-Type": "application/json" }
             });
