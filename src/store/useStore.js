@@ -1,14 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+    dedupeMessages,
+    getJidDigits,
+    getMessageIdentity,
+    reconcileMessages,
+    sortMessagesDesc,
+} from '../utils/messageSync';
 
 // Helper to extract number from JID for safe comparison
-const getNum = (jid) => String(jid || "").split('@')[0].replace(/\D/g, '');
+const getChatKey = (jid) => getJidDigits(jid);
 
 export const useStore = create(
     persist(
         (set, get) => ({
             apiUrl: import.meta.env.VITE_API_URL || 'https://api.voxeflow.com',
-            apiKey: import.meta.env.VITE_API_KEY || 'Beatriz@CB650',
+            apiKey: import.meta.env.VITE_API_KEY || '',
             instanceName: import.meta.env.VITE_INSTANCE_NAME || 'VoxeFlow',
             briefing: '', // V7: Start empty to trigger interactive briefing
             knowledgeBase: [
@@ -85,6 +92,7 @@ export const useStore = create(
             activeChat: null,
             messages: [],
             lastFetchedJid: null,
+            pendingOutgoing: {},
 
             // CRM State - AURA Gold Palette
             tags: [
@@ -118,12 +126,90 @@ export const useStore = create(
                 const activeJid = currentActive.id || currentActive.remoteJid;
 
                 // Use numbers-only comparison for maximum safety
-                if (getNum(activeJid) === getNum(jid)) {
+                if (getJidDigits(activeJid) === getJidDigits(jid)) {
                     console.log(`AURA: Updating messages for ${jid} (${messages?.length || 0} msgs)`);
-                    set({ messages, lastFetchedJid: jid });
+                    const chatKey = getChatKey(activeJid);
+                    const pending = get().pendingOutgoing[chatKey] || [];
+                    const { merged, stillPending } = reconcileMessages(messages || [], pending, 30 * 60 * 1000);
+
+                    set((state) => ({
+                        messages: merged,
+                        lastFetchedJid: jid,
+                        pendingOutgoing: { ...state.pendingOutgoing, [chatKey]: stillPending },
+                    }));
                 } else {
                     console.warn(`AURA: Blocked message leak from ${jid} to ${activeJid}`);
                 }
+            },
+
+            appendPendingOutgoing: (jid, text, serverRecord = null) => {
+                const state = get();
+                const active = state.activeChat;
+                if (!jid || !text?.trim()) return;
+
+                const nowMs = Date.now();
+                const outgoing = serverRecord?.key ? {
+                    ...serverRecord,
+                    __local: true,
+                    __createdAt: nowMs,
+                } : {
+                    key: {
+                        id: `local-${nowMs}-${Math.random().toString(36).slice(2, 8)}`,
+                        fromMe: true,
+                        remoteJid: jid,
+                    },
+                    messageTimestamp: Math.floor(nowMs / 1000),
+                    message: { conversation: text.trim() },
+                    __local: true,
+                    __createdAt: nowMs,
+                };
+
+                const chatKey = getChatKey(jid);
+                const currentPending = state.pendingOutgoing[chatKey] || [];
+                const nextPending = dedupeMessages([outgoing, ...currentPending]);
+
+                const activeJid = active?.id || active?.remoteJid;
+                const shouldAppendToVisible = activeJid && getJidDigits(activeJid) === getJidDigits(jid);
+                const nextVisible = shouldAppendToVisible
+                    ? sortMessagesDesc(dedupeMessages([outgoing, ...state.messages]))
+                    : state.messages;
+
+                set((prev) => ({
+                    messages: nextVisible,
+                    pendingOutgoing: {
+                        ...prev.pendingOutgoing,
+                        [chatKey]: nextPending,
+                    },
+                }));
+            },
+
+            appendRealtimeMessage: (record) => {
+                const state = get();
+                const active = state.activeChat;
+                if (!active || !record?.key) return;
+
+                const activeNums = [
+                    active.id,
+                    active.remoteJid,
+                    active.jid,
+                    active.linkedLid,
+                ].map(getJidDigits).filter(Boolean);
+
+                const recordNums = [
+                    record.key?.remoteJid,
+                    record.remoteJid,
+                    record.key?.participant,
+                    record.participant,
+                ].map(getJidDigits).filter(Boolean);
+
+                const belongsToActive = record.key?.fromMe || recordNums.some((num) => activeNums.includes(num));
+                if (!belongsToActive) return;
+
+                const incomingFp = getMessageIdentity(record);
+                const exists = state.messages.some((item) => getMessageIdentity(item) === incomingFp);
+                if (exists) return;
+
+                set({ messages: [record, ...state.messages] });
             },
 
             setIsConnected: (isConnected) => set({ isConnected }),
