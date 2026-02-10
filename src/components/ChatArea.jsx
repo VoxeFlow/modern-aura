@@ -50,7 +50,8 @@ const ChatArea = ({ isArchived = false, onBack }) => {
         handleMicClick,
         handleSend,
         useSuggestion,
-        handleAttachmentClick,
+        handleFileSelect,
+        handleAttachmentMenuOpen,
     } = useChatComposer({
         activeChat,
         input,
@@ -110,7 +111,8 @@ const ChatArea = ({ isArchived = false, onBack }) => {
                     <ChatComposer
                         showAttachMenu={showAttachMenu}
                         setShowAttachMenu={setShowAttachMenu}
-                        handleAttachmentClick={handleAttachmentClick}
+                        handleAttachmentMenuOpen={handleAttachmentMenuOpen}
+                        handleFileSelect={handleFileSelect}
                         handleSend={handleSend}
                         input={input}
                         setInput={setInput}

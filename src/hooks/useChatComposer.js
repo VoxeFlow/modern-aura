@@ -151,54 +151,45 @@ export function useChatComposer({
         }
     }, [setInput, suggestion]);
 
-    const handleAttachmentClick = useCallback(async (type) => {
-        if (!activeChat?.id) return;
+    const handleFileSelect = useCallback(async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Reset the input so the same file can be selected again if needed
+        e.target.value = '';
 
         setShowAttachMenu(false);
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
 
-        if (type === 'Fotos/Vídeos') {
-            fileInput.accept = 'image/*,video/*';
-        } else if (type === 'Documento') {
-            fileInput.accept = '.pdf,.doc,.docx,.txt,.xlsx,.xls';
-        } else if (type === 'Câmera') {
-            fileInput.accept = 'image/*';
-            fileInput.capture = 'environment';
-        }
-
-        fileInput.onchange = async (event) => {
-            const file = event.target.files[0];
-            document.body.removeChild(fileInput);
-            if (!file) return;
-
-            openPrompt(`Enviar: ${file.name}`, '', async (caption) => {
-                try {
-                    setSending(true);
-                    const res = await WhatsAppService.sendMedia(activeChat.id, file, caption || '');
-                    if (res) {
-                        loadMessages();
-                    } else {
-                        console.error('Upload failed result:', res);
-                    }
-                } catch (error) {
-                    console.error('Upload error:', error);
-                } finally {
-                    setSending(false);
+        openPrompt(`Enviar: ${file.name}`, '', async (caption) => {
+            try {
+                setSending(true);
+                const res = await WhatsAppService.sendMedia(activeChat.id, file, caption || '');
+                if (res) {
+                    loadMessages();
+                } else {
+                    console.error('Upload failed result:', res);
+                    openConfirm('Erro', 'Falha ao enviar arquivo.');
                 }
-            });
-        };
+            } catch (error) {
+                console.error('Upload error:', error);
+                openConfirm('Erro', 'Erro ao enviar mídia.');
+            } finally {
+                setSending(false);
+            }
+        });
+    }, [activeChat?.id, loadMessages, openConfirm, openPrompt, setSending, setShowAttachMenu]);
 
-        setTimeout(() => fileInput.click(), 50);
-    }, [activeChat?.id, loadMessages, openPrompt, setSending, setShowAttachMenu]);
+    // This now only handles the menu logic if needed, or can be removed if handled in UI
+    const handleAttachmentMenuOpen = useCallback(() => {
+        setShowAttachMenu(true);
+    }, [setShowAttachMenu]);
 
     return {
         recording,
         handleMicClick,
         handleSend,
         useSuggestion,
-        handleAttachmentClick,
+        handleFileSelect,
+        handleAttachmentMenuOpen,
     };
 }

@@ -40,3 +40,29 @@ export const formatJid = (jid) => {
 
     return number;
 };
+
+export const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000); // WhatsApp uses seconds usually, but let's check input
+    // If timestamp is huge (ms), don't multiply. If small (seconds), multiply.
+    // Standard JS Date takes ms.
+    const time = (String(timestamp).length > 11) ? new Date(timestamp) : new Date(timestamp * 1000);
+
+    return time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+export const getMessageDateGroup = (timestamp) => {
+    if (!timestamp) return 'Data Desconhecida';
+    const date = (String(timestamp).length > 11) ? new Date(timestamp) : new Date(timestamp * 1000);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+        return 'Hoje';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Ontem';
+    } else {
+        return date.toLocaleDateString('pt-BR');
+    }
+};

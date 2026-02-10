@@ -1,11 +1,18 @@
+import React from 'react';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
 import { resolveRenderedMessage } from '../utils/chatArea';
+import { formatMessageTime, getMessageDateGroup } from '../utils/formatter';
 
 const MessageList = ({ messages, loading, messagesEndRef }) => {
+    // Determine sort order. Assuming 'messages' prop is Newest-First (standard for chat apps storage),
+    // we reverse it for display (Oldest at top, Newest at bottom).
+    const sortedMessages = Array.isArray(messages) ? [...messages].reverse() : [];
+    let lastDateGroup = null;
+
     return (
         <div className="thread scrollable">
-            {Array.isArray(messages) && [...messages].reverse().map((message, index) => {
+            {sortedMessages.map((message, index) => {
                 const parsed = resolveRenderedMessage(message);
                 let displayContent = parsed.displayContent;
                 let mediaElement = null;
@@ -29,10 +36,26 @@ const MessageList = ({ messages, loading, messagesEndRef }) => {
                 const messageKey = message?.key?.id || `${message?.messageTimestamp || 'ts'}-${index}`;
                 const isFromMe = Boolean(message?.key?.fromMe || message?.fromMe);
 
+                // Date Grouping Logic
+                const messageDate = getMessageDateGroup(message.messageTimestamp);
+                const showDateSeparator = messageDate !== lastDateGroup;
+                lastDateGroup = messageDate;
+
+                // Time Formatting
+                const formattedTime = formatMessageTime(message.messageTimestamp);
+
                 return (
-                    <div key={messageKey} className={`message ${isFromMe ? 'out' : 'in'}`}>
-                        {mediaElement || displayContent}
-                    </div>
+                    <React.Fragment key={messageKey}>
+                        {showDateSeparator && (
+                            <div className="date-separator">
+                                <span>{messageDate}</span>
+                            </div>
+                        )}
+                        <div className={`message ${isFromMe ? 'out' : 'in'}`}>
+                            {mediaElement || displayContent}
+                            <span className="msg-time">{formattedTime}</span>
+                        </div>
+                    </React.Fragment>
                 );
             })}
             {loading && messages.length === 0 && <p className="loading-txt">Carregando histórico...</p>}
