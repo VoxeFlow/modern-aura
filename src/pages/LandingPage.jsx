@@ -98,7 +98,7 @@ const LandingPage = ({ onGetStarted }) => {
             {/* Top Bar with Login Button */}
             <div className="landing-top-bar">
                 <div className="top-bar-logo">
-                    <img src={logoLight} alt="AURA" style={{ height: '24px' }} />
+                    <img src={logoDark} alt="AURA" style={{ height: '24px' }} />
                 </div>
                 <button className="btn-already-client" onClick={onGetStarted}>
                     Já sou Cliente →

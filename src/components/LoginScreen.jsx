@@ -39,7 +39,7 @@ export default function LoginScreen({ onLogin }) {
             <div className="login-card">
                 <div className="login-header">
                     <div className="logo" style={{ marginBottom: '20px' }}>
-                        <img src={logoLight} alt="AURA Logo" style={{ width: '120px', height: 'auto' }} />
+                        <img src={logoDark} alt="AURA Logo" style={{ width: '120px', height: 'auto' }} />
                     </div>
                     <p className="subtitle">Business Copilot</p>
                 </div>

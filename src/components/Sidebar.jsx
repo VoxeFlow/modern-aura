@@ -1,5 +1,6 @@
 import { X, LayoutDashboard, Kanban, History, Settings, LogOut } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import logoLight from '../assets/logo-light.png';
 import logoDark from '../assets/logo-dark.png';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
@@ -14,7 +15,7 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                     <X size={24} />
                 </button>
                 <div className="logo-container" style={{ padding: '20px 0', textAlign: 'center' }}>
-                    <img src={logoDark} alt="AURA" style={{ width: '80%', maxWidth: '120px', height: 'auto' }} />
+                    <img src={logoLight} alt="AURA" style={{ width: '80%', maxWidth: '120px', height: 'auto' }} />
                 </div>
 
                 <nav id="mainNav">
