@@ -1,5 +1,4 @@
-import { LayoutDashboard, History, Settings, LogOut, Link2, Brain, Kanban, X } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import logoDark from '../assets/logo-dark.png';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
     const { activeChat, currentView, setCurrentView, setActiveChat, switchView } = useStore();
@@ -12,8 +11,8 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                 <button className="mobile-close-btn" onClick={onClose}>
                     <X size={24} />
                 </button>
-                <div className="logo-container">
-                    <h1>Aura</h1>
+                <div className="logo-container" style={{ padding: '20px 0', textAlign: 'center' }}>
+                    <img src={logoDark} alt="AURA" style={{ width: '80%', maxWidth: '120px', height: 'auto' }} />
                 </div>
 
                 <nav id="mainNav">

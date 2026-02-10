@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logoLight from '../assets/logo-light.png';
 import './LoginScreen.css';
 
 export default function LoginScreen({ onLogin }) {
@@ -37,14 +38,9 @@ export default function LoginScreen({ onLogin }) {
         <div className="login-container">
             <div className="login-card">
                 <div className="login-header">
-                    <div className="logo">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                    <div className="logo" style={{ marginBottom: '20px' }}>
+                        <img src={logoLight} alt="AURA Logo" style={{ width: '120px', height: 'auto' }} />
                     </div>
-                    <h1>AURA</h1>
                     <p className="subtitle">Business Copilot</p>
                 </div>
 

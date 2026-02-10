@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Zap, Brain, TrendingUp, Users, Shield, ArrowRight } from 'lucide-react';
+import logoLight from '../assets/logo-light.png';
+import logoDark from '../assets/logo-dark.png';
 import './LandingPage.css';
 
 const LandingPage = ({ onGetStarted }) => {
@@ -95,7 +97,9 @@ const LandingPage = ({ onGetStarted }) => {
         <div className="landing-page">
             {/* Top Bar with Login Button */}
             <div className="landing-top-bar">
-                <div className="top-bar-logo">AURA</div>
+                <div className="top-bar-logo">
+                    <img src={logoLight} alt="AURA" style={{ height: '24px' }} />
+                </div>
                 <button className="btn-already-client" onClick={onGetStarted}>
                     Já sou Cliente →
                 </button>
@@ -105,15 +109,7 @@ const LandingPage = ({ onGetStarted }) => {
             <section className="hero">
                 <div className="hero-content">
                     <div className="logo-hero">
-                        <div className="logo-icon">
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
-                                <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.9" />
-                                <rect x="3" y="13" width="7" height="7" rx="1" fill="currentColor" opacity="0.7" />
-                                <rect x="13" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.7" />
-                                <rect x="13" y="13" width="7" height="7" rx="1" fill="currentColor" opacity="0.5" />
-                            </svg>
-                        </div>
-                        <h1>AURA</h1>
+                        <img src={logoDark} alt="AURA" style={{ height: '60px', marginBottom: '10px' }} />
                     </div>
 
                     <h2 className="hero-title">
@@ -246,7 +242,7 @@ const LandingPage = ({ onGetStarted }) => {
             <footer className="footer">
                 <div className="footer-content">
                     <div className="footer-logo">
-                        <h4>AURA</h4>
+                        <img src={logoLight} alt="AURA" style={{ height: '32px', marginBottom: '10px' }} />
                         <p>Business Copilot</p>
                     </div>
                     <div className="footer-links">
