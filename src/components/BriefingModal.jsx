@@ -130,8 +130,13 @@ const BriefingModal = ({ isOpen, onClose }) => {
                         <button
                             onClick={() => {
                                 if (window.confirm("⚠️ TEM CERTEZA?\n\nIsso apagará TODO o conhecimento da AURA e reiniciará o sistema.")) {
+                                    // 1. ZUSTAND RESET
                                     useStore.getState().resetBrain();
-                                    // FORCE REFRESH to ensure nuclear wipe effective immediately
+
+                                    // 2. HARD NUKING STORAGE (Bypass Zustand)
+                                    localStorage.removeItem('aura-storage');
+
+                                    // 3. FORCE RELOAD
                                     setTimeout(() => window.location.reload(), 100);
                                 }
                             }}
@@ -139,6 +144,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                         >
                             Resetar Cérebro
                         </button>
+                        <span style={{ fontSize: '9px', color: '#ccc' }}>v11.3.12</span>
                         <X size={24} color="#1d1d1f" onClick={onClose} style={{ cursor: 'pointer', opacity: 0.3 }} />
                     </div>
                 </div>
