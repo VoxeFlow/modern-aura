@@ -457,8 +457,25 @@ class WhatsAppService {
         });
 
         // Sort by real activity (newest first)
-        return Array.from(finalMap.values()).sort((a, b) => {
+        const sorted = Array.from(finalMap.values()).sort((a, b) => {
             return (getTS(b) * 1000) - (getTS(a) * 1000);
+        });
+
+        // FINAL DEDUPLICATION: Ensure one chat per Phone Number
+        // Sometimes the mapping logic above might miss edge cases if LIDs and Phones don't have a direct link yet.
+        const uniquePhones = new Set();
+        return sorted.filter(chat => {
+            const rawId = chat.id || chat.jid || chat.remoteJid;
+            const digits = this.getNum(rawId);
+
+            // If it's a valid phone number (10+ digits), dedupe it
+            if (digits && digits.length >= 10) {
+                if (uniquePhones.has(digits)) return false;
+                uniquePhones.add(digits);
+                return true;
+            }
+            // If it's a short code or group, keep it
+            return true;
         });
     }
 

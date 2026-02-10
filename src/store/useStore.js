@@ -80,11 +80,7 @@ export const useStore = create(
                     analysis: "Posicionamento Premium. A IA justificará a ausência de convênios com a qualidade superior dos materiais. 'Não atendemos convênio, atendemos você com o melhor que existe.'"
                 }
             ], // v1.2.3: Structured Q&A for the Knowledge Dashboard
-            ragSources: [
-                { id: 1, name: 'Tabela de Preços - Invisalign', keywords: ['preço', 'valor', 'quanto', 'invisalign'], content: 'O Invisalign Lite começa em R$ 8.000. O Full em R$ 12.000. Parcelamos em 12x sem juros.' },
-                { id: 2, name: 'Protocolo Ortodontia', keywords: ['aparelho', 'ferrinho', 'orto', 'manutenção'], content: 'Manutenção mensal de R$ 150. Documentação ortodôntica inclusa no fechamento.' },
-                { id: 3, name: 'Implantes Dentários', keywords: ['implante', 'dente', 'parafuso', 'dentadura'], content: 'Trabalhamos com Implantes Straumann (Suíços). Avaliação inicial inclui escaneamento 3D.' }
-            ], // AURA v8: RAG Specialist Agents
+            ragSources: [], // AURA v11: Clean state - RAG dependent on user input only
 
             isConnected: false,
             currentView: 'dashboard',

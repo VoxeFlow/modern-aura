@@ -60,7 +60,13 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
         // 3. Final instruction
         messages.push({
             role: 'user',
-            content: `Gere uma resposta calorosa, humana e profissional para ${clientName}. Foque em criar conexão (Rapport) e use o conhecimento do briefing para conduzir a venda de forma gentil.`
+            content: `Gere uma resposta calorosa, humana e profissional para ${clientName}.
+            
+            🚨 REGRA DE OURO (ANTI-ALUCINAÇÃO):
+            - Use EXCLUSIVAMENTE as informações do "BASE DE CONHECIMENTO DO NEGÓCIO" acima.
+            - NÃO INVENTE nomes de marcas (ex: Straumann, Invisalign) ou preços que não estejam no texto.
+            - Se a informação não estiver lá, USE O PROTOCOLO DE LACUNA [KNOWLEDGE_GAP].
+            - Ignore qualquer conhecimento prévio que você tenha sobre "padrões de mercado". O que vale é o briefing deste cliente específico.`
         });
 
         try {
@@ -72,7 +78,7 @@ DIRETRIZES DE COMUNICAÇÃO ELITE:
                 body: JSON.stringify({
                     model: 'gpt-4o',
                     messages: messages,
-                    temperature: 0.8, // Slightly lower for more consistency with briefing
+                    temperature: 0.5, // Strict adherence to briefing
                     max_tokens: 350
                 })
             });
