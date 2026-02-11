@@ -1,3 +1,5 @@
+/app/ /app/index.html 200
+/app /app/index.html 200
 /app/* /app/index.html 200
 /assets/* /assets/:splat 200
 /* /index.html 200
