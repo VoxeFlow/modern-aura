@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Zap, Brain, TrendingUp, Users, Shield, ArrowRight } from 'lucide-react';
 import logoLight from '../assets/logo-light.png';
 import logoDark from '../assets/logo-dark.png';
-import { useStore } from '../store/useStore';
+// Decoupled: No more useStore import
 import './LandingPage.css';
 
 const LandingPage = ({ onGetStarted }) => {
@@ -89,19 +89,16 @@ const LandingPage = ({ onGetStarted }) => {
         e.preventDefault();
         console.log('Form submitted:', formData);
 
-        // REAL CRM INTEGRATION
-        // 1. Create Lead in Aura Store
-        useStore.getState().addLead(formData);
+        // DECOUPLED INTEGRATION
+        // 1. Save Lead to LocalStorage (App will pick this up on load)
+        localStorage.setItem('aura_pending_lead', JSON.stringify(formData));
 
         // 2. Auto-Login (Demo Mode)
         const token = btoa(`authenticated:${Date.now()}`);
         localStorage.setItem('auth_token', token);
 
-        // 3. Redirect to CRM
-        onGetStarted(); // This switches view to 'dashboard' or 'crm' depending on App.jsx logic
-
-        // Force switch to CRM view to see the lead
-        useStore.getState().switchView('crm');
+        // 3. Trigger transition to App
+        onGetStarted();
     };
 
     return (

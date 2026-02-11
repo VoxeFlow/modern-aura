@@ -58,6 +58,24 @@ const App = () => {
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
+  // LEAD PROCESSING: Check for pending leads from Landing Page
+  useEffect(() => {
+    if (isAuthenticated) {
+      const pendingLead = localStorage.getItem('aura_pending_lead');
+      if (pendingLead) {
+        try {
+          const leadData = JSON.parse(pendingLead);
+          console.log('AURA: Processing pending lead', leadData);
+          useStore.getState().addLead(leadData);
+          useStore.getState().switchView('crm'); // Go to CRM to see the new lead
+          localStorage.removeItem('aura_pending_lead');
+        } catch (e) {
+          console.error('AURA: Failed to process pending lead', e);
+        }
+      }
+    }
+  }, [isAuthenticated]);
+
   // Handle external modal triggers (from Hub/Settings)
   useEffect(() => {
     const handleOpenBriefing = () => setIsBriefingOpen(true);
@@ -130,6 +148,8 @@ const App = () => {
       <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
         {currentView === 'crm' ? (
           <CRMView />
+        ) : currentView === 'dashboard' ? (
+          <DashboardView />
         ) : activeChat ? (
           <ChatArea isArchived={currentView === 'history'} onBack={() => setActiveChat(null)} />
         ) : (

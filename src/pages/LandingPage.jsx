@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Zap, Brain, TrendingUp, Users, Shield, ArrowRight } from 'lucide-react';
 import logoLight from '../assets/logo-light.png';
 import logoDark from '../assets/logo-dark.png';
+// Decoupled: No more useStore import
 import './LandingPage.css';
 
 const LandingPage = ({ onGetStarted }) => {
@@ -12,121 +13,152 @@ const LandingPage = ({ onGetStarted }) => {
         plan: 'pro'
     });
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log('Form submitted:', formData);
-        // TODO: Integrate with backend/payment
-        // For now, navigate to login screen
-        alert(`Cadastro iniciado para ${formData.name}! Redirecionando para login...`);
-        setTimeout(() => onGetStarted(), 1500);
-    };
+
 
     const features = [
         {
             icon: <Brain size={32} />,
-            title: 'IA Estratégica',
-            description: 'Sugestões inteligentes de respostas que convertem leads em vendas'
+            title: 'Co-Piloto Inteligente',
+            description: 'A IA analisa a conversa e sugere a resposta perfeita. Você edita e envia.'
         },
         {
             icon: <TrendingUp size={32} />,
-            title: 'CRM Automático',
-            description: 'Pipeline visual que organiza seus clientes automaticamente'
+            title: 'Pipeline de Vendas',
+            description: 'Organize pacientes por etapa: Agendamento, Avaliação e Fechamento.'
         },
         {
             icon: <Users size={32} />,
-            title: 'Histórico Completo',
-            description: 'Todas as conversas salvas e pesquisáveis em segundos'
+            title: 'Histórico e Contexto',
+            description: 'A IA lembra de tudo o que foi conversado para não perder detalhes.'
         },
         {
             icon: <Zap size={32} />,
-            title: 'Respostas Rápidas',
-            description: 'Reduza tempo de resposta em 70% com IA'
+            title: 'Agilidade no Atendimento',
+            description: 'Sua secretária responde 10x mais rápido com sugestões prontas.'
         },
         {
             icon: <Shield size={32} />,
-            title: 'Segurança Total',
-            description: 'Autenticação protegida e dados criptografados'
+            title: 'Controle Total',
+            description: 'Nada é enviado sem sua aprovação. A tecnologia serve você.'
         }
     ];
 
     const plans = [
         {
+            id: 'starter',
             name: 'Starter',
             price: 'R$ 197',
             period: '/mês',
             features: [
                 '1 número WhatsApp',
-                'IA com 500 sugestões/mês',
-                'CRM básico',
-                'Histórico 30 dias',
+                'IA GPT-4o (Igual ao Pro)',
+                'CRM Completo',
+                'Limitado a 500 msgs/mês',
                 'Suporte por email'
             ],
-            recommended: false
+            recommended: false,
+            link: 'https://pay.hotmart.com/placeholder-starter'
         },
         {
+            id: 'pro',
             name: 'Pro',
-            price: 'R$ 497',
+            price: 'R$ 397',
             period: '/mês',
             features: [
                 '3 números WhatsApp',
-                'IA com 3.000 sugestões/mês',
-                'CRM completo + automações',
-                'Histórico ilimitado',
-                'Suporte prioritário',
-                'Relatórios avançados'
+                'IA GPT-4o (Igual ao Starter)',
+                'CRM Completo',
+                'Mensagens e Leads ILIMITADOS',
+                'Suporte Prioritário'
             ],
-            recommended: true
-        },
-        {
-            name: 'Enterprise',
-            price: 'Personalizado',
-            period: '',
-            features: [
-                'Números ilimitados',
-                'IA ilimitada',
-                'Integrações customizadas',
-                'API dedicada',
-                'Account Manager',
-                'SLA garantido'
-            ],
-            recommended: false
+            recommended: true,
+            link: 'https://pay.hotmart.com/placeholder-pro'
         }
     ];
 
+    const handlePlanSelect = (plan) => {
+        if (plan.action === 'contact') {
+            window.open('https://wa.me/5511999999999?text=Interesse no Plano Enterprise', '_blank');
+        } else {
+            setFormData({ ...formData, plan: plan.id });
+            document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        console.log('Form submitted:', formData);
+
+        // DECOUPLED INTEGRATION
+        // 1. Save Lead to LocalStorage (App will pick this up on load)
+        localStorage.setItem('aura_pending_lead', JSON.stringify(formData));
+
+        // 2. Auto-Login (Demo Mode)
+        const token = btoa(`authenticated:${Date.now()}`);
+        localStorage.setItem('auth_token', token);
+
+        // 3. Trigger transition to App
+        onGetStarted();
+    };
+
     return (
         <div className="landing-page">
-            {/* Top Bar with Login Button */}
+            {/* BACKGROUND ANIMATION */}
+            <div className="neural-bg">
+                <div className="grid-overlay"></div>
+            </div>
+
+            {/* Top Bar */}
             <div className="landing-top-bar">
                 <div className="top-bar-logo">
-                    <img src={logoDark} alt="AURA" style={{ height: '24px' }} />
+                    <img src={logoLight} alt="AURA" style={{ height: '24px' }} />
                 </div>
-                <button className="btn-already-client" onClick={onGetStarted}>
-                    Já sou Cliente →
+                <button className="btn-login" onClick={onGetStarted}>
+                    Já sou Cliente
                 </button>
             </div>
 
             {/* Hero Section */}
             <section className="hero">
                 <div className="hero-content">
-                    <div className="logo-hero">
-                        <img src={logoDark} alt="AURA" style={{ height: '60px', marginBottom: '10px' }} />
-                    </div>
+                    <p className="hero-glow-text">SISTEMA DE CO-PILOTO PARA DENTISTAS v12.0</p>
 
                     <h2 className="hero-title">
-                        Transforme WhatsApp em<br />
-                        <span className="highlight">Máquina de Vendas com IA</span>
+                        A Inteligência que<br />
+                        <span className="highlight">Potencializa sua Secretária</span>
                     </h2>
 
                     <p className="hero-subtitle">
-                        Sistema completo de vendas com Inteligência Artificial.<br />
-                        Sugestões estratégicas, CRM automático e histórico inteligente.
+                        Não é um robô que fala sozinho. É um <strong>Super-Cérebro</strong> que sugere as melhores respostas para sua equipe fechar mais tratamentos.
                     </p>
 
-                    <button className="cta-primary" onClick={() => document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' })}>
-                        Começar Agora <ArrowRight size={20} />
+                    <button className="cta-button" onClick={() => document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' })}>
+                        <Zap size={24} /> Testar o Co-Piloto
                     </button>
+                </div>
 
-                    <p className="hero-trust">✓ Sem cartão de crédito • ✓ Teste grátis 7 dias</p>
+                {/* INTERACTIVE DEMO ("The Machine") */}
+                <div className="demo-container">
+                    <div className="demo-chat">
+                        <div className="msg user" style={{ animationDelay: '0.5s' }}>Boa tarde, gostaria de saber o valor do Invisalign.</div>
+                        <div className="msg aura" style={{ animationDelay: '2.5s' }}>
+                            Oi! O Invisalign varia conforme a complexidade, mas é o investimento certo para quem busca estética e conforto. 💎 Quer agendar uma avaliação para simularmos seu sorriso?
+                        </div>
+                    </div>
+                    <div className="analysis-panel">
+                        <div className="analysis-item">
+                            <label>INTENÇÃO DETECTADA</label>
+                            <div>FINANCEIRO (ALTA)</div>
+                        </div>
+                        <div className="analysis-item">
+                            <label>ESTRATÉGIA</label>
+                            <div>Valorização + Agendamento</div>
+                        </div>
+                        <div className="analysis-item">
+                            <label>PROBABILIDADE VENDA</label>
+                            <div style={{ color: '#00ff88' }}>87.5%</div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -163,12 +195,9 @@ const LandingPage = ({ onGetStarted }) => {
                             </ul>
                             <button
                                 className={plan.recommended ? 'btn-gold' : 'btn-outline'}
-                                onClick={() => {
-                                    setFormData({ ...formData, plan: plan.name.toLowerCase() });
-                                    document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
-                                }}
+                                onClick={() => handlePlanSelect(plan)}
                             >
-                                Escolher {plan.name}
+                                {plan.action === 'contact' ? 'Falar com Consultor' : `Assinar ${plan.name}`}
                             </button>
                         </div>
                     ))}
