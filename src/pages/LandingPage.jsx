@@ -103,11 +103,6 @@ const LandingPage = ({ onGetStarted }) => {
 
     return (
         <div className="landing-page">
-            {/* BACKGROUND ANIMATION */}
-            <div className="neural-bg">
-                <div className="grid-overlay"></div>
-            </div>
-
             {/* Top Bar */}
             <div className="landing-top-bar">
                 <div className="top-bar-logo">
@@ -121,20 +116,26 @@ const LandingPage = ({ onGetStarted }) => {
             {/* Hero Section */}
             <section className="hero">
                 <div className="hero-content">
-                    <p className="hero-glow-text">SISTEMA DE CO-PILOTO PARA DENTISTAS v12.0</p>
+                    <span className="badge-new">NOVA VERSÃO 12.0</span>
 
-                    <h2 className="hero-title">
+                    <h1 className="hero-title">
                         A Inteligência que<br />
-                        <span className="highlight">Potencializa sua Secretária</span>
-                    </h2>
+                        <span className="highlight">Potencializa sua Clínica</span>
+                    </h1>
 
                     <p className="hero-subtitle">
-                        Não é um robô que fala sozinho. É um <strong>Super-Cérebro</strong> que sugere as melhores respostas para sua equipe fechar mais tratamentos.
+                        Transforme o WhatsApp em uma máquina de agendamentos.
+                        O <strong>AURA</strong> é o co-piloto que sugere respostas perfeitas para sua secretária fechar mais tratamentos.
                     </p>
 
-                    <button className="cta-button" onClick={() => document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' })}>
-                        <Zap size={24} /> Testar o Co-Piloto
-                    </button>
+                    <div className="cta-group">
+                        <button className="cta-button primary" onClick={() => document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' })}>
+                            Começar Agora <ArrowRight size={20} />
+                        </button>
+                        <button className="cta-button secondary" onClick={() => window.open('https://wa.me/5511999999999', '_blank')}>
+                            Ver Demonstração
+                        </button>
+                    </div>
                 </div>
 
                 {/* INTERACTIVE DEMO ("The Machine") */}
