@@ -125,17 +125,20 @@ export default function LoginScreen({ onLogin }) {
 
                 </div>
 
-                <form onSubmit={handleSubmit} className="login-form">
+                <form onSubmit={handleSubmit} className="login-form" autoComplete="off">
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
                         <input
                             id="email"
                             type="email"
+                            name="aura_login_email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="seu@email.com"
+                            placeholder="coloque aqui o seu email"
                             disabled={isLoading}
                             autoFocus
+                            autoComplete="off"
+                            spellCheck={false}
                             required
                         />
                     </div>
@@ -145,10 +148,12 @@ export default function LoginScreen({ onLogin }) {
                         <input
                             id="password"
                             type="password"
+                            name="aura_login_password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Digite sua senha"
+                            placeholder="coloque aqui a sua senha"
                             disabled={isLoading}
+                            autoComplete="new-password"
                             required
                         />
                     </div>
