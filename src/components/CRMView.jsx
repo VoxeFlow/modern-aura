@@ -7,15 +7,16 @@ const CRMView = () => {
 
     const safeChats = Array.isArray(chats) ? chats : [];
     const leadsInSession = safeChats.filter((chat) => {
-        const jid = chat?.id || chat?.remoteJid || chat?.jid;
+        const jid = chat?.crmKey || chat?.chatKey || chat?.id || chat?.remoteJid || chat?.jid;
         return Boolean(jid && chatTags[jid]);
     });
 
     // Calculate stats
     const totalLeads = leadsInSession.length;
+    const closedTagId = tags.find((tag) => String(tag?.name || '').toLowerCase() === 'fechado')?.id || 'fechado';
     const fechadosCount = leadsInSession.filter((chat) => {
-        const jid = chat?.id || chat?.remoteJid || chat?.jid;
-        return chatTags[jid] === 'fechado';
+        const jid = chat?.crmKey || chat?.chatKey || chat?.id || chat?.remoteJid || chat?.jid;
+        return chatTags[jid] === closedTagId;
     }).length;
     const conversionRate = totalLeads > 0 ? Math.round((fechadosCount / totalLeads) * 100) : 0;
 
@@ -50,7 +51,7 @@ const CRMView = () => {
                 <div className="crm-board-track">
                     {tags.map(tag => {
                         const tagChats = chats.filter(c => {
-                            const jid = c.id || c.remoteJid || c.jid;
+                            const jid = c?.crmKey || c?.chatKey || c?.id || c?.remoteJid || c?.jid;
                             return chatTags[jid] === tag.id;
                         });
 
