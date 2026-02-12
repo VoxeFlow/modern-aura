@@ -13,6 +13,13 @@ import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 import { isSupabaseEnabled, supabase } from './services/supabase';
 import { resolveTenantContext } from './services/tenant';
+import {
+  ensureDefaultTenantChannel,
+  loadConversationSummaries,
+  loadCrmStagesAsTags,
+  mapChannelsToStore,
+  persistChatsSnapshot,
+} from './services/tenantData';
 
 const App = () => {
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
@@ -32,6 +39,9 @@ const App = () => {
     setWhatsAppChannelStatus,
     setAuthIdentity,
     applyTenantContext,
+    setWhatsAppChannels,
+    setTags,
+    tenantId,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
@@ -162,6 +172,36 @@ const App = () => {
         applyTenantContext(tenantCtx);
         if (tenantCtx?.tenantId) {
           localStorage.setItem('aura_tenant_id', tenantCtx.tenantId);
+
+          try {
+            const channelRows = await ensureDefaultTenantChannel({
+              tenantId: tenantCtx.tenantId,
+              userId: user.id,
+            });
+            if (!cancelled) {
+              setWhatsAppChannels(mapChannelsToStore(channelRows));
+            }
+          } catch (error) {
+            console.error('AURA channel bootstrap failed', error);
+          }
+
+          try {
+            const stageTags = await loadCrmStagesAsTags(tenantCtx.tenantId);
+            if (!cancelled && Array.isArray(stageTags) && stageTags.length > 0) {
+              setTags(stageTags);
+            }
+          } catch (error) {
+            console.error('AURA crm bootstrap failed', error);
+          }
+
+          try {
+            const summaryChats = await loadConversationSummaries(tenantCtx.tenantId);
+            if (!cancelled && Array.isArray(summaryChats) && summaryChats.length > 0) {
+              setChats(summaryChats);
+            }
+          } catch (error) {
+            console.error('AURA inbox bootstrap failed', error);
+          }
         }
       } catch (error) {
         console.error('AURA: tenant bootstrap failed', error);
@@ -170,7 +210,7 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats]);
 
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
@@ -235,7 +275,17 @@ const App = () => {
       setIsConnected(openRows.length > 0);
 
       if (openRows.length === 0) {
-        setChats([]);
+        if (tenantId) {
+          try {
+            const summaryChats = await loadConversationSummaries(tenantId);
+            setChats(summaryChats);
+          } catch (error) {
+            console.error('AURA: offline inbox load error', error);
+            setChats([]);
+          }
+        } else {
+          setChats([]);
+        }
         return;
       }
 
@@ -255,11 +305,16 @@ const App = () => {
       });
 
       setChats(merged);
+      if (tenantId) {
+        persistChatsSnapshot({ tenantId, chats: merged }).catch((error) => {
+          console.error('AURA: tenant chat snapshot sync failed', error);
+        });
+      }
     };
     checkConn();
     const itv = setInterval(checkConn, 30000);
     return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus]);
+  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus, tenantId]);
 
   // AUTH: Handle logout
   const handleLogout = async () => {
