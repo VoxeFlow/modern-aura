@@ -91,12 +91,13 @@ const CRMColumn = ({ tag, chats, onDropChat }) => {
                     </div>
                 ) : (
                     chats.map(chat => {
-                        const jid = chat.id || chat.remoteJid || chat.jid;
+                        const jid = chat?.crmKey || chat?.chatKey || chat?.id || chat?.remoteJid || chat?.jid;
                         return (
                             <CRMCard
                                 key={jid}
                                 chat={chat}
                                 tag={tag}
+                                dndKey={jid}
                                 draggable
                             />
                         );

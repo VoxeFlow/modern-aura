@@ -5,9 +5,10 @@ import WhatsAppService from '../services/whatsapp';
 import { useArchivedChats } from '../hooks/useArchivedChats';
 import { getChatDisplayName, getChatJid, getChatTimestampMs } from '../utils/chatList';
 import ChatListItem from './ChatListItem';
+import { loadConversationSummaries, loadLeadTagMap, persistChatsSnapshot } from '../services/tenantData';
 
 const ChatList = ({ onOpenMenu }) => {
-    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel } = useStore();
+    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel, tenantId, setChatTags } = useStore();
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [channelFilter, setChannelFilter] = useState('all');
@@ -17,10 +18,23 @@ const ChatList = ({ onOpenMenu }) => {
         if (loading) return;
         setLoading(true);
         try {
+            if (tenantId) {
+                try {
+                    const summaries = await loadConversationSummaries(tenantId);
+                    if (Array.isArray(summaries)) {
+                        setChats(summaries);
+                    }
+                    const leadMap = await loadLeadTagMap(tenantId);
+                    setChatTags(leadMap);
+                } catch (error) {
+                    console.error('AURA tenant inbox refresh error:', error);
+                }
+            }
+
             const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
             const connectedChannels = channels.filter((channel) => String(channel.instanceName || '').trim());
             if (connectedChannels.length === 0) {
-                setChats([]);
+                if (!tenantId) setChats([]);
                 return;
             }
 
@@ -49,6 +63,11 @@ const ChatList = ({ onOpenMenu }) => {
 
             const merged = chatsByChannel.flat().sort((a, b) => getChatTimestampMs(b) - getChatTimestampMs(a));
             setChats(merged);
+            if (tenantId) {
+                persistChatsSnapshot({ tenantId, chats: merged }).catch((error) => {
+                    console.error('AURA tenant persist snapshot error:', error);
+                });
+            }
         } catch (e) {
             console.error("AURA ChatList Error:", e);
         } finally {

@@ -15,6 +15,7 @@ import { isSupabaseEnabled, supabase } from './services/supabase';
 import { resolveTenantContext } from './services/tenant';
 import {
   ensureDefaultTenantChannel,
+  loadLeadTagMap,
   loadConversationSummaries,
   loadCrmStagesAsTags,
   mapChannelsToStore,
@@ -41,6 +42,7 @@ const App = () => {
     applyTenantContext,
     setWhatsAppChannels,
     setTags,
+    setChatTags,
     tenantId,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -196,11 +198,20 @@ const App = () => {
 
           try {
             const summaryChats = await loadConversationSummaries(tenantCtx.tenantId);
-            if (!cancelled && Array.isArray(summaryChats) && summaryChats.length > 0) {
+            if (!cancelled && Array.isArray(summaryChats)) {
               setChats(summaryChats);
             }
           } catch (error) {
             console.error('AURA inbox bootstrap failed', error);
+          }
+
+          try {
+            const leadMap = await loadLeadTagMap(tenantCtx.tenantId);
+            if (!cancelled) {
+              setChatTags(leadMap);
+            }
+          } catch (error) {
+            console.error('AURA crm lead map bootstrap failed', error);
           }
         }
       } catch (error) {
@@ -210,7 +221,7 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags]);
 
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
@@ -309,12 +320,15 @@ const App = () => {
         persistChatsSnapshot({ tenantId, chats: merged }).catch((error) => {
           console.error('AURA: tenant chat snapshot sync failed', error);
         });
+        loadLeadTagMap(tenantId)
+          .then((leadMap) => setChatTags(leadMap))
+          .catch((error) => console.error('AURA: lead map refresh failed', error));
       }
     };
     checkConn();
     const itv = setInterval(checkConn, 30000);
     return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus, tenantId]);
+  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags]);
 
   // AUTH: Handle logout
   const handleLogout = async () => {

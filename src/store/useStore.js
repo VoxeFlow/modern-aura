@@ -389,6 +389,9 @@ export const useStore = create(
                 console.log(`AURA: Updating store with ${chats?.length || 0} chats`);
                 set((state) => {
                     const list = Array.isArray(chats) ? chats : [];
+                    if (state.tenantId) {
+                        return { chats: list };
+                    }
                     const currentTags = state.chatTags || {};
                     const novoLeadTagId = state.tags.find((t) => t.id === 'novo')?.id || state.tags[0]?.id;
 
@@ -638,6 +641,9 @@ export const useStore = create(
             setTags: (tags = []) => set(() => ({
                 tags: Array.isArray(tags) && tags.length > 0 ? tags : DEFAULT_TAGS,
             })),
+            setChatTags: (chatTags = {}) => set(() => ({
+                chatTags: chatTags && typeof chatTags === 'object' ? chatTags : {},
+            })),
 
             // CRM Actions
             setTag: (chatId, tagId) => set((state) => {
@@ -646,8 +652,15 @@ export const useStore = create(
                 };
 
                 const chat = (state.chats || []).find((item) => {
-                    const id = item?.id || item?.remoteJid || item?.jid;
-                    return id === chatId;
+                    const candidates = [
+                        item?.crmKey,
+                        item?.chatKey,
+                        item?.id,
+                        item?.chatJid,
+                        item?.remoteJid,
+                        item?.jid,
+                    ];
+                    return candidates.includes(chatId);
                 });
                 const stage = (state.tags || []).find((item) => item.id === tagId);
                 if (chat && stage?.name) {

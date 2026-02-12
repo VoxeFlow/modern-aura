@@ -4,12 +4,13 @@ import { useStore } from '../store/useStore';
 import { formatJid } from '../utils/formatter';
 import OpenAIService from '../services/openai';
 
-const CRMCard = ({ chat, tag, draggable = false }) => {
+const CRMCard = ({ chat, tag, draggable = false, dndKey = '' }) => {
     const { setActiveChat, chatNextSteps, setNextSteps, messages } = useStore();
     const [analyzing, setAnalyzing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
-    const jid = chat.id || chat.remoteJid || chat.jid;
+    const jid = chat.chatJid || chat.sendTargetJid || chat.remoteJid || chat.jid || chat.id;
+    const crmKey = dndKey || chat.crmKey || chat.chatKey || chat.id || jid;
     const msg = chat.lastMessage?.message || chat.message || {};
 
     let name = [
@@ -48,7 +49,7 @@ const CRMCard = ({ chat, tag, draggable = false }) => {
         return `${days}d atrás`;
     };
 
-    const nextSteps = chatNextSteps[jid];
+    const nextSteps = chatNextSteps[crmKey];
 
     const handleAnalyze = async (e) => {
         e.stopPropagation();
@@ -72,7 +73,7 @@ const CRMCard = ({ chat, tag, draggable = false }) => {
                 tag.name
             );
 
-            setNextSteps(jid, result);
+            setNextSteps(crmKey, result);
         } catch (error) {
             console.error('Error analyzing next steps:', error);
         } finally {
@@ -82,7 +83,12 @@ const CRMCard = ({ chat, tag, draggable = false }) => {
 
     const handleOpenChat = () => {
         if (isDragging) return;
-        setActiveChat({ id: jid, name: patientName });
+        setActiveChat({
+            ...chat,
+            id: chat.chatKey || chat.id || jid,
+            chatJid: jid,
+            name: patientName,
+        });
         useStore.getState().setCurrentView('dashboard');
     };
 
@@ -93,7 +99,7 @@ const CRMCard = ({ chat, tag, draggable = false }) => {
             draggable={draggable}
             onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', jid);
+                e.dataTransfer.setData('text/plain', crmKey);
                 setIsDragging(true);
             }}
             onDragEnd={() => setIsDragging(false)}

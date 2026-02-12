@@ -13,6 +13,10 @@ function normalizeJid(value) {
     return raw.includes('@') ? raw : `${raw}@s.whatsapp.net`;
 }
 
+function getDigits(value) {
+    return String(value || '').replace(/\D/g, '');
+}
+
 function chatTimestampToIso(chat) {
     const ts = chat?.lastMessage?.messageTimestamp || chat?.messageTimestamp || chat?.conversationTimestamp || 0;
     if (!ts) return new Date().toISOString();
@@ -274,12 +278,15 @@ export async function loadConversationSummaries(tenantId) {
 
     return (data || []).map((row) => {
         const jid = row?.contacts?.jid || `${row.id}@s.whatsapp.net`;
+        const digits = getDigits(jid);
         return {
             id: `conv:${row.id}`,
             chatKey: `conv:${row.id}`,
+            crmKey: jid,
             chatJid: jid,
             remoteJid: jid,
             jid,
+            phoneNumber: digits || null,
             name: row?.contacts?.display_name || 'Contato',
             profilePicUrl: row?.contacts?.avatar_url || null,
             messageTimestamp: row?.last_message_at ? Math.floor(new Date(row.last_message_at).getTime() / 1000) : 0,
@@ -293,6 +300,31 @@ export async function loadConversationSummaries(tenantId) {
             },
         };
     });
+}
+
+export async function loadLeadTagMap(tenantId) {
+    if (!isSupabaseEnabled || !isUuid(tenantId)) return {};
+    const { data, error } = await supabase
+        .from('crm_leads')
+        .select('stage_id,contacts:contact_id(jid),conversations:conversation_id(id)')
+        .eq('tenant_id', tenantId);
+    if (error) throw error;
+
+    const map = {};
+    (data || []).forEach((row) => {
+        const stageId = row?.stage_id;
+        if (!stageId) return;
+        const jid = row?.contacts?.jid ? normalizeJid(row.contacts.jid) : '';
+        const convId = row?.conversations?.id ? `conv:${row.conversations.id}` : '';
+        const digits = getDigits(jid);
+        if (jid) map[jid] = stageId;
+        if (convId) map[convId] = stageId;
+        if (digits) {
+            map[`phone:${digits}`] = stageId;
+            map[digits] = stageId;
+        }
+    });
+    return map;
 }
 
 export async function persistLeadStage({ tenantId, chat, stageName, ownerUserId = null }) {
