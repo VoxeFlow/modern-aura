@@ -11,8 +11,6 @@ export default function LoginScreen({ onLogin }) {
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isMasterMode, setIsMasterMode] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState('pro');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -26,15 +24,10 @@ export default function LoginScreen({ onLogin }) {
         const cleanEmail = String(email || '').trim().toLowerCase();
 
         try {
-            if (isMasterMode) {
-                const emailOk = cleanEmail === masterEmail;
-                const passOk = masterPassword && password === masterPassword;
-                if (!emailOk || !passOk) {
-                    setError('Credenciais master inválidas.');
-                    setPassword('');
-                    return;
-                }
-
+            // Invisible master login: no public master toggle in UI.
+            const emailOk = cleanEmail === masterEmail;
+            const passOk = masterPassword && password === masterPassword;
+            if (emailOk && passOk) {
                 const tokenPayload = {
                     type: 'authenticated',
                     issuedAt: Date.now(),
@@ -45,7 +38,9 @@ export default function LoginScreen({ onLogin }) {
                 const token = btoa(JSON.stringify(tokenPayload));
                 localStorage.setItem('auth_token', token);
                 localStorage.setItem('aura_master_mode', '1');
-                localStorage.setItem('aura_subscription_plan', selectedPlan);
+                if (!localStorage.getItem('aura_subscription_plan')) {
+                    localStorage.setItem('aura_subscription_plan', 'scale');
+                }
                 onLogin();
                 return;
             }
@@ -131,39 +126,6 @@ export default function LoginScreen({ onLogin }) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="login-form">
-                    <div className={`master-toggle ${isMasterMode ? 'active' : ''}`}>
-                        <div>
-                            <h3>Modo master</h3>
-                            <p>Ativa troca de plano para testes</p>
-                        </div>
-                        <label className="switch">
-                            <input
-                                id="masterMode"
-                                type="checkbox"
-                                checked={isMasterMode}
-                                onChange={(e) => setIsMasterMode(e.target.checked)}
-                                disabled={isLoading}
-                            />
-                            <span className="slider" />
-                        </label>
-                    </div>
-
-                    {isMasterMode && (
-                        <div className="form-group master-plan-group">
-                            <label htmlFor="plan">Plano para testes</label>
-                            <select
-                                id="plan"
-                                value={selectedPlan}
-                                onChange={(e) => setSelectedPlan(e.target.value)}
-                                disabled={isLoading}
-                            >
-                                <option value="lite">Lite</option>
-                                <option value="pro">Pro</option>
-                                <option value="scale">Scale</option>
-                            </select>
-                        </div>
-                    )}
-
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
                         <input
@@ -171,7 +133,7 @@ export default function LoginScreen({ onLogin }) {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder={isMasterMode ? 'drjeffersonreis@gmail.com' : 'seu@email.com'}
+                            placeholder="seu@email.com"
                             disabled={isLoading}
                             autoFocus
                             required
@@ -179,7 +141,7 @@ export default function LoginScreen({ onLogin }) {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password">{isMasterMode ? 'Senha Master' : 'Senha de Acesso'}</label>
+                        <label htmlFor="password">Senha de Acesso</label>
                         <input
                             id="password"
                             type="password"
@@ -222,17 +184,16 @@ export default function LoginScreen({ onLogin }) {
                         )}
                     </button>
 
-                    {!isMasterMode && (
-                        <button
-                            type="button"
-                            className="login-button-secondary"
-                            onClick={handleSignUp}
-                            disabled={isLoading || !password || !email}
-                        >
-                            Criar conta
-                        </button>
-                    )}
-                    {!isSupabaseEnabled && !isMasterMode && (
+                    <button
+                        type="button"
+                        className="login-button-secondary"
+                        onClick={handleSignUp}
+                        disabled={isLoading || !password || !email}
+                    >
+                        Criar conta
+                    </button>
+
+                    {!isSupabaseEnabled && (
                         <p className="login-hint">Modo email/senha ficará ativo quando VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY forem configurados.</p>
                     )}
                 </form>
