@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import logoLight from '../assets/logo-light.png';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
-    const { activeChat, currentView, switchView, hasFeature, subscriptionPlan, getPlanConfig, setSubscriptionPlan } = useStore();
+    const { activeChat, currentView, switchView, hasFeature, subscriptionPlan, getPlanConfig, setSubscriptionPlan, tenantName } = useStore();
     const hasCrm = hasFeature('crm_basic');
     const planLabel = getPlanConfig()?.label || String(subscriptionPlan || '').toUpperCase();
     const isMasterMode = localStorage.getItem('aura_master_mode') === '1';
@@ -114,6 +114,11 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                         <div style={{ fontSize: '10px', opacity: 0.5, color: 'var(--accent-primary)', fontWeight: 'bold' }}>
                             Plano: {planLabel}
                         </div>
+                        {tenantName && (
+                            <div style={{ fontSize: '10px', opacity: 0.55, color: '#7a7f88', marginTop: '2px' }}>
+                                Tenant: {tenantName}
+                            </div>
+                        )}
                         {isMasterMode && (
                             <select
                                 value={subscriptionPlan}
