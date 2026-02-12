@@ -3,6 +3,12 @@ import { X, RefreshCw, LogOut, QrCode, Plus, Trash2, CheckCircle2 } from 'lucide
 import { io } from 'socket.io-client';
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
+import {
+    deleteTenantChannel,
+    loadTenantChannels,
+    mapChannelsToStore,
+    upsertTenantChannel,
+} from '../services/tenantData';
 
 const ConnectModal = ({ isOpen, onClose }) => {
     const {
@@ -16,7 +22,10 @@ const ConnectModal = ({ isOpen, onClose }) => {
         getMaxWhatsAppChannels,
         whatsappChannelStatus,
         setWhatsAppChannelStatus,
+        setWhatsAppChannels,
         hasFeature,
+        tenantId,
+        userId,
     } = useStore();
 
     const [qrCode, setQrCode] = useState(null);
@@ -147,7 +156,25 @@ const ConnectModal = ({ isOpen, onClose }) => {
         };
     }, [isOpen, activeConnected, activeChannel?.instanceName, qrCode]);
 
-    const handleSaveInstance = () => {
+    const syncChannelRow = useCallback(async (channel, extra = {}) => {
+        if (!tenantId || !channel) return null;
+        try {
+            const row = await upsertTenantChannel({
+                tenantId,
+                channel,
+                userId,
+                ...extra,
+            });
+            const allRows = await loadTenantChannels(tenantId);
+            setWhatsAppChannels(mapChannelsToStore(allRows), row?.id || channel.id);
+            return row;
+        } catch (error) {
+            console.error('AURA channel sync error:', error);
+            return null;
+        }
+    }, [tenantId, userId, setWhatsAppChannels]);
+
+    const handleSaveInstance = async () => {
         const result = updateWhatsAppChannel(activeChannel?.id, {
             instanceName: instanceDraft,
         });
@@ -162,13 +189,14 @@ const ConnectModal = ({ isOpen, onClose }) => {
         }
 
         setInstanceDraft(result.channel.instanceName);
+        await syncChannelRow(result.channel);
         setStatus('disconnected');
         setQrCode(null);
         return true;
     };
 
     const handleGenerateQr = async () => {
-        if (!handleSaveInstance()) return;
+        if (!(await handleSaveInstance())) return;
 
         setLoading(true);
         if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'connecting');
@@ -206,6 +234,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         }
 
         setChannelLabelDraft(result.channel.label);
+        syncChannelRow(result.channel);
     };
 
     const handleDisconnect = async () => {
@@ -216,6 +245,9 @@ const ConnectModal = ({ isOpen, onClose }) => {
         try {
             await WhatsAppService.logoutInstance();
             if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'disconnected');
+            if (activeChannel) {
+                await syncChannelRow(activeChannel, { status: 'disconnected' });
+            }
             setStatus('disconnected');
             setQrCode(null);
         } finally {
@@ -223,7 +255,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         }
     };
 
-    const handleAddChannel = () => {
+    const handleAddChannel = async () => {
         const clean = String(newChannelDraft || '').trim();
         if (!clean) {
             alert('Informe o nome do canal.');
@@ -254,12 +286,24 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
         setNewChannelDraft('');
         setIsAddChannelOpen(false);
+        await syncChannelRow(result.channel);
     };
 
-    const handleRemoveCurrentChannel = () => {
+    const handleRemoveCurrentChannel = async () => {
+        const channelToRemove = activeChannel;
         const result = removeWhatsAppChannel(activeChannel?.id);
         if (!result.ok) {
             alert('É necessário manter pelo menos 1 canal ativo.');
+            return;
+        }
+        if (tenantId && channelToRemove?.id) {
+            try {
+                await deleteTenantChannel({ tenantId, channelId: channelToRemove.id });
+                const allRows = await loadTenantChannels(tenantId);
+                setWhatsAppChannels(mapChannelsToStore(allRows));
+            } catch (error) {
+                console.error('AURA channel remove sync error:', error);
+            }
         }
     };
 

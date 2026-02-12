@@ -242,6 +242,16 @@ export const useStore = create(
                     [channelId]: connectionState || 'disconnected',
                 },
             })),
+            setWhatsAppChannels: (channels = [], activeId = null) => set((state) => {
+                const list = Array.isArray(channels) && channels.length > 0 ? channels : DEFAULT_CHANNELS;
+                const fallbackActive = activeId || state.activeWhatsAppChannelId || list[0]?.id;
+                const active = list.find((item) => item.id === fallbackActive) || list[0] || null;
+                return {
+                    whatsappChannels: list,
+                    activeWhatsAppChannelId: active?.id || null,
+                    instanceName: active?.instanceName || '',
+                };
+            }),
             switchWhatsAppChannel: (channelId) => set((state) => {
                 const channels = Array.isArray(state.whatsappChannels) ? state.whatsappChannels : [];
                 const found = channels.find((item) => item.id === channelId);
@@ -625,11 +635,34 @@ export const useStore = create(
             updateCRMColumn: (id, updates) => set(state => ({
                 tags: state.tags.map(t => t.id === id ? { ...t, ...updates } : t)
             })),
+            setTags: (tags = []) => set(() => ({
+                tags: Array.isArray(tags) && tags.length > 0 ? tags : DEFAULT_TAGS,
+            })),
 
             // CRM Actions
-            setTag: (chatId, tagId) => set(state => ({
-                chatTags: { ...state.chatTags, [chatId]: tagId }
-            })),
+            setTag: (chatId, tagId) => set((state) => {
+                const next = {
+                    chatTags: { ...state.chatTags, [chatId]: tagId }
+                };
+
+                const chat = (state.chats || []).find((item) => {
+                    const id = item?.id || item?.remoteJid || item?.jid;
+                    return id === chatId;
+                });
+                const stage = (state.tags || []).find((item) => item.id === tagId);
+                if (chat && stage?.name) {
+                    import('../services/tenantData')
+                        .then(({ persistLeadStage }) => persistLeadStage({
+                            tenantId: state.tenantId,
+                            chat,
+                            stageName: stage.name,
+                            ownerUserId: state.userId,
+                        }))
+                        .catch((error) => console.error('AURA CRM sync error:', error));
+                }
+
+                return next;
+            }),
 
             setKnowledgeBase: (knowledgeBase) => set({ knowledgeBase }),
 
@@ -648,6 +681,14 @@ export const useStore = create(
                 ];
 
                 // Keep bounded memory footprint
+                import('../services/tenantData')
+                    .then(({ persistLearningEvent }) => persistLearningEvent({
+                        tenantId: state.tenantId,
+                        userId: state.userId,
+                        event,
+                    }))
+                    .catch((error) => console.error('AURA learning sync error:', error));
+
                 return { learningEvents: next.slice(-500) };
             }),
 
