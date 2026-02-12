@@ -46,6 +46,32 @@ function slugifyInstanceName(value = '') {
         .slice(0, 40);
 }
 
+const DEFAULT_TAGS = [
+    { id: 'novo', name: 'Novo Lead', icon: '🆕', color: '#C5A059' },
+    { id: 'qualificado', name: 'Qualificado', icon: '✅', color: '#d4af6a' },
+    { id: 'proposta', name: 'Proposta Enviada', icon: '📋', color: '#af8a43' },
+    { id: 'agendado', name: 'Agendado', icon: '📅', color: '#c09850' },
+    { id: 'fechado', name: 'Fechado', icon: '💰', color: '#e0c080' },
+    { id: 'perdido', name: 'Perdido', icon: '❌', color: '#8a6d3a' }
+];
+
+const DEFAULT_CHANNELS = [
+    {
+        id: 'channel-default',
+        label: 'Principal',
+        instanceName: '',
+    },
+];
+
+const DEFAULT_TEAM_USERS = [
+    {
+        id: 'owner-1',
+        name: 'Administrador',
+        role: 'owner',
+        email: '',
+    },
+];
+
 export const useStore = create(
     persist(
         (set, get) => ({
@@ -57,23 +83,16 @@ export const useStore = create(
             ragSources: [], // AURA v11: Clean state - RAG dependent on user input only
             subscriptionPlan: normalizePlan(import.meta.env.VITE_DEFAULT_PLAN || 'pro'),
             aiUsageByMonth: {},
-            whatsappChannels: [
-                {
-                    id: 'channel-default',
-                    label: 'Principal',
-                    instanceName: '',
-                },
-            ],
+            whatsappChannels: DEFAULT_CHANNELS,
             activeWhatsAppChannelId: 'channel-default',
             whatsappChannelStatus: {},
-            teamUsers: [
-                {
-                    id: 'owner-1',
-                    name: 'Administrador',
-                    role: 'owner',
-                    email: '',
-                },
-            ],
+            teamUsers: DEFAULT_TEAM_USERS,
+            tenantId: null,
+            tenantSlug: '',
+            tenantName: '',
+            availableTenants: [],
+            userId: null,
+            userEmail: '',
 
             isConnected: false,
             currentView: 'dashboard',
@@ -84,14 +103,7 @@ export const useStore = create(
             pendingOutgoing: {},
 
             // CRM State - AURA Gold Palette
-            tags: [
-                { id: 'novo', name: 'Novo Lead', icon: '🆕', color: '#C5A059' },
-                { id: 'qualificado', name: 'Qualificado', icon: '✅', color: '#d4af6a' },
-                { id: 'proposta', name: 'Proposta Enviada', icon: '📋', color: '#af8a43' },
-                { id: 'agendado', name: 'Agendado', icon: '📅', color: '#c09850' },
-                { id: 'fechado', name: 'Fechado', icon: '💰', color: '#e0c080' },
-                { id: 'perdido', name: 'Perdido', icon: '❌', color: '#8a6d3a' }
-            ],
+            tags: DEFAULT_TAGS,
             chatTags: {}, // { chatId: tagId }
             chatNextSteps: {}, // { chatId: { steps: [], priority: '', reasoning: '' } }
 
@@ -99,6 +111,47 @@ export const useStore = create(
             managerPhone: '', // The specialist/manager WhatsApp number
             pendingGaps: {}, // { gapId: { chatId, question, timestamp } }
             learningEvents: [], // Rolling learning log for accepted messages and edits
+
+            setAuthIdentity: ({ userId = null, userEmail = '' } = {}) => set({
+                userId,
+                userEmail: String(userEmail || '').trim().toLowerCase(),
+            }),
+            applyTenantContext: ({ tenantId = null, tenantSlug = '', tenantName = '', tenants = [] } = {}) => set((state) => {
+                const nextTenantId = tenantId || null;
+                const hasTenantChanged = Boolean(state.tenantId && nextTenantId && state.tenantId !== nextTenantId);
+                const base = {
+                    tenantId: nextTenantId,
+                    tenantSlug: tenantSlug || '',
+                    tenantName: tenantName || '',
+                    availableTenants: Array.isArray(tenants) ? tenants : [],
+                };
+                if (!hasTenantChanged) return base;
+
+                // Hard isolate local state between tenants (prevents cross-tenant data leaks in browser persistence).
+                return {
+                    ...base,
+                    isConnected: false,
+                    chats: [],
+                    activeChat: null,
+                    messages: [],
+                    lastFetchedJid: null,
+                    pendingOutgoing: {},
+                    tags: DEFAULT_TAGS,
+                    chatTags: {},
+                    chatNextSteps: {},
+                    managerPhone: '',
+                    pendingGaps: {},
+                    learningEvents: [],
+                    instanceName: '',
+                    whatsappChannels: DEFAULT_CHANNELS,
+                    activeWhatsAppChannelId: 'channel-default',
+                    whatsappChannelStatus: {},
+                    teamUsers: DEFAULT_TEAM_USERS,
+                    apiKey: '',
+                    subscriptionPlan: normalizePlan(import.meta.env.VITE_DEFAULT_PLAN || 'pro'),
+                    aiUsageByMonth: {},
+                };
+            }),
 
             setConfig: (config) => set((state) => {
                 const next = { ...state, ...config };
@@ -511,6 +564,12 @@ export const useStore = create(
                 console.log('AURA: Logging out and clearing data...');
                 set({
                     isConnected: false,
+                    tenantId: null,
+                    tenantSlug: '',
+                    tenantName: '',
+                    availableTenants: [],
+                    userId: null,
+                    userEmail: '',
                     chats: [],
                     messages: [],
                     activeChat: null,
@@ -520,6 +579,7 @@ export const useStore = create(
                 });
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('aura-storage'); // Nuke state persistence
+                localStorage.removeItem('aura_tenant_id');
             },
 
             // CRM ACTIONS
@@ -663,6 +723,12 @@ export const useStore = create(
                 activeWhatsAppChannelId: state.activeWhatsAppChannelId,
                 whatsappChannelStatus: state.whatsappChannelStatus,
                 teamUsers: state.teamUsers,
+                tenantId: state.tenantId,
+                tenantSlug: state.tenantSlug,
+                tenantName: state.tenantName,
+                availableTenants: state.availableTenants,
+                userId: state.userId,
+                userEmail: state.userEmail,
             }),
         }
     )

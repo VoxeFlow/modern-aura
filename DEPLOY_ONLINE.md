@@ -24,6 +24,9 @@ Projeto: `modern-aura` (ou o nome do seu projeto no Pages)
 Adicionar em **Settings > Environment variables**:
 
 - `OPENAI_API_KEY` = sua chave valida
+- `VITE_SUPABASE_URL` = URL do projeto Supabase
+- `VITE_SUPABASE_ANON_KEY` = chave anon public do Supabase
+- `VITE_MASTER_EMAIL` = email master (ex: drjeffersonreis@gmail.com)
 - (opcional) `AI_PROXY_URL` = URL de proxy externo, se nao quiser usar `functions/api/ai.js`
 
 Repita em:
@@ -80,3 +83,14 @@ Esperado: status `200` e resposta JSON com `choices`.
   - resposta sugerida IA
   - envio de audio
 - So depois promover para Production.
+
+## 8) Fase 2 Multi-tenant (obrigatorio para SaaS com isolamento)
+
+1. No Supabase SQL Editor, execute:
+   - `supabase/migrations/20260212_phase2_multitenant.sql`
+2. Confirme as tabelas:
+   - `tenants`
+   - `tenant_memberships`
+   - `user_profiles`
+3. Confirme RLS ativado nas tres tabelas.
+4. Faça deploy da `main` novamente para ativar bootstrap de tenant no app.

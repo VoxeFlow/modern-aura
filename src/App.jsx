@@ -12,6 +12,7 @@ import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 import { isSupabaseEnabled, supabase } from './services/supabase';
+import { resolveTenantContext } from './services/tenant';
 
 const App = () => {
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
@@ -29,6 +30,8 @@ const App = () => {
     updateWhatsAppChannel,
     whatsappChannels,
     setWhatsAppChannelStatus,
+    setAuthIdentity,
+    applyTenantContext,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
@@ -130,6 +133,45 @@ const App = () => {
     }
   }, [isAuthenticated, hasFeature, setSubscriptionPlan, switchView]);
 
+  // TENANT BOOTSTRAP: resolve active workspace for current authenticated user.
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) return;
+    let cancelled = false;
+
+    const bootstrapTenant = async () => {
+      try {
+        if (!isSupabaseEnabled) {
+          setAuthIdentity({ userId: null, userEmail: 'legacy@local' });
+          applyTenantContext({
+            tenantId: 'legacy-local',
+            tenantName: 'Workspace Local',
+            tenantSlug: 'legacy-local',
+            tenants: [{ id: 'legacy-local', name: 'Workspace Local', slug: 'legacy-local', role: 'owner' }],
+          });
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        const user = data?.session?.user || null;
+        if (!user || cancelled) return;
+        const preferredTenantId = localStorage.getItem('aura_tenant_id') || null;
+        const tenantCtx = await resolveTenantContext({ user, preferredTenantId });
+        if (cancelled) return;
+
+        setAuthIdentity({ userId: user.id, userEmail: user.email || '' });
+        applyTenantContext(tenantCtx);
+        if (tenantCtx?.tenantId) {
+          localStorage.setItem('aura_tenant_id', tenantCtx.tenantId);
+        }
+      } catch (error) {
+        console.error('AURA: tenant bootstrap failed', error);
+      }
+    };
+
+    bootstrapTenant();
+    return () => { cancelled = true; };
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext]);
+
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
     if (currentView === 'crm' && !hasFeature('crm_basic')) {
@@ -226,6 +268,7 @@ const App = () => {
     }
     localStorage.removeItem('auth_token');
     localStorage.removeItem('aura_master_mode');
+    localStorage.removeItem('aura_tenant_id');
     setIsAuthenticated(false);
   };
 
