@@ -1,54 +1,123 @@
 import { useState } from 'react';
 import logoDark from '../assets/logo-dark.png';
 import './LoginScreen.css';
+import { isSupabaseEnabled, supabase } from '../services/supabase';
 
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
 export default function LoginScreen({ onLogin }) {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [info, setInfo] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isMasterMode, setIsMasterMode] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState('pro');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setInfo('');
         setIsLoading(true);
 
         const userPassword = import.meta.env.VITE_AUTH_PASSWORD;
         const masterPassword = import.meta.env.VITE_MASTER_PASSWORD;
+        const masterEmail = String(import.meta.env.VITE_MASTER_EMAIL || 'drjeffersonreis@gmail.com').toLowerCase();
+        const cleanEmail = String(email || '').trim().toLowerCase();
 
-        setTimeout(() => {
-            const isValid = isMasterMode ? (masterPassword && password === masterPassword) : (userPassword && password === userPassword);
-            if (isValid) {
+        try {
+            if (isMasterMode) {
+                const emailOk = cleanEmail === masterEmail;
+                const passOk = masterPassword && password === masterPassword;
+                if (!emailOk || !passOk) {
+                    setError('Credenciais master inválidas.');
+                    setPassword('');
+                    return;
+                }
+
                 const tokenPayload = {
                     type: 'authenticated',
                     issuedAt: Date.now(),
                     expiresAt: Date.now() + AUTH_TTL_MS,
-                    role: isMasterMode ? 'master' : 'user',
+                    role: 'master',
+                    email: cleanEmail,
                 };
                 const token = btoa(JSON.stringify(tokenPayload));
                 localStorage.setItem('auth_token', token);
-                if (isMasterMode) {
-                    localStorage.setItem('aura_master_mode', '1');
-                    localStorage.setItem('aura_subscription_plan', selectedPlan);
-                } else {
-                    localStorage.removeItem('aura_master_mode');
-                }
+                localStorage.setItem('aura_master_mode', '1');
+                localStorage.setItem('aura_subscription_plan', selectedPlan);
                 onLogin();
-            } else {
-                if (isMasterMode && !masterPassword) {
-                    setError('Senha master não configurada. Defina VITE_MASTER_PASSWORD.');
-                } else if (!isMasterMode && !userPassword) {
+                return;
+            }
+
+            if (isSupabaseEnabled) {
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email: cleanEmail,
+                    password,
+                });
+                if (signInError) {
+                    setError(signInError.message || 'Falha no login por email.');
+                    setPassword('');
+                    return;
+                }
+                localStorage.removeItem('aura_master_mode');
+                onLogin();
+                return;
+            }
+
+            const isValid = userPassword && password === userPassword;
+            if (!isValid) {
+                if (!userPassword) {
                     setError('Senha padrão não configurada. Defina VITE_AUTH_PASSWORD.');
                 } else {
                     setError('Senha incorreta. Tente novamente.');
                 }
                 setPassword('');
+                return;
             }
+
+            const tokenPayload = {
+                type: 'authenticated',
+                issuedAt: Date.now(),
+                expiresAt: Date.now() + AUTH_TTL_MS,
+                role: 'user',
+                email: cleanEmail || 'legacy@local',
+            };
+            const token = btoa(JSON.stringify(tokenPayload));
+            localStorage.setItem('auth_token', token);
+            localStorage.removeItem('aura_master_mode');
+            onLogin();
+        } finally {
             setIsLoading(false);
-        }, 500);
+        }
+    };
+
+    const handleSignUp = async () => {
+        setError('');
+        setInfo('');
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail || !password) {
+            setError('Preencha email e senha para criar conta.');
+            return;
+        }
+        if (!isSupabaseEnabled) {
+            setError('Cadastro por email exige Supabase configurado.');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const { error: signUpError } = await supabase.auth.signUp({
+                email: cleanEmail,
+                password,
+            });
+            if (signUpError) {
+                setError(signUpError.message || 'Falha ao criar conta.');
+                return;
+            }
+            setInfo('Conta criada. Verifique seu email para confirmar acesso (se confirmação estiver ativa).');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -96,6 +165,20 @@ export default function LoginScreen({ onLogin }) {
                     )}
 
                     <div className="form-group">
+                        <label htmlFor="email">Email</label>
+                        <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={isMasterMode ? 'drjeffersonreis@gmail.com' : 'seu@email.com'}
+                            disabled={isLoading}
+                            autoFocus
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
                         <label htmlFor="password">{isMasterMode ? 'Senha Master' : 'Senha de Acesso'}</label>
                         <input
                             id="password"
@@ -104,7 +187,6 @@ export default function LoginScreen({ onLogin }) {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Digite sua senha"
                             disabled={isLoading}
-                            autoFocus
                             required
                         />
                     </div>
@@ -119,11 +201,16 @@ export default function LoginScreen({ onLogin }) {
                             {error}
                         </div>
                     )}
+                    {info && (
+                        <div className="info-message">
+                            {info}
+                        </div>
+                    )}
 
                     <button
                         type="submit"
                         className="login-button"
-                        disabled={isLoading || !password}
+                        disabled={isLoading || !password || !email}
                     >
                         {isLoading ? (
                             <>
@@ -134,6 +221,20 @@ export default function LoginScreen({ onLogin }) {
                             'Entrar'
                         )}
                     </button>
+
+                    {!isMasterMode && (
+                        <button
+                            type="button"
+                            className="login-button-secondary"
+                            onClick={handleSignUp}
+                            disabled={isLoading || !password || !email}
+                        >
+                            Criar conta
+                        </button>
+                    )}
+                    {!isSupabaseEnabled && !isMasterMode && (
+                        <p className="login-hint">Modo email/senha ficará ativo quando VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY forem configurados.</p>
+                    )}
                 </form>
 
                 <div className="login-footer">
