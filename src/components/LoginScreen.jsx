@@ -24,39 +24,50 @@ export default function LoginScreen({ onLogin }) {
         const cleanEmail = String(email || '').trim().toLowerCase();
 
         try {
-            // Invisible master login: no public master toggle in UI.
-            const emailOk = cleanEmail === masterEmail;
-            const passOk = masterPassword && password === masterPassword;
-            if (emailOk && passOk) {
-                const tokenPayload = {
-                    type: 'authenticated',
-                    issuedAt: Date.now(),
-                    expiresAt: Date.now() + AUTH_TTL_MS,
-                    role: 'master',
-                    email: cleanEmail,
-                };
-                const token = btoa(JSON.stringify(tokenPayload));
-                localStorage.setItem('auth_token', token);
-                localStorage.setItem('aura_master_mode', '1');
-                if (!localStorage.getItem('aura_subscription_plan')) {
-                    localStorage.setItem('aura_subscription_plan', 'scale');
-                }
-                onLogin();
-                return;
-            }
-
             if (isSupabaseEnabled) {
                 const { error: signInError } = await supabase.auth.signInWithPassword({
                     email: cleanEmail,
                     password,
                 });
-                if (signInError) {
-                    setError(signInError.message || 'Falha no login por email.');
-                    setPassword('');
+                if (!signInError) {
+                    // Invisible master mode: enabled by credentials, but only after a real Supabase login.
+                    const emailOk = cleanEmail === masterEmail;
+                    const passOk = masterPassword && password === masterPassword;
+                    if (emailOk && passOk) {
+                        localStorage.setItem('aura_master_mode', '1');
+                        if (!localStorage.getItem('aura_subscription_plan')) {
+                            localStorage.setItem('aura_subscription_plan', 'scale');
+                        }
+                    } else {
+                        localStorage.removeItem('aura_master_mode');
+                    }
+                    onLogin();
                     return;
                 }
-                localStorage.removeItem('aura_master_mode');
-                onLogin();
+
+                // Fallback legacy master (only if credentials match exactly).
+                const emailOk = cleanEmail === masterEmail;
+                const passOk = masterPassword && password === masterPassword;
+                if (emailOk && passOk) {
+                    const tokenPayload = {
+                        type: 'authenticated',
+                        issuedAt: Date.now(),
+                        expiresAt: Date.now() + AUTH_TTL_MS,
+                        role: 'master',
+                        email: cleanEmail,
+                    };
+                    const token = btoa(JSON.stringify(tokenPayload));
+                    localStorage.setItem('auth_token', token);
+                    localStorage.setItem('aura_master_mode', '1');
+                    if (!localStorage.getItem('aura_subscription_plan')) {
+                        localStorage.setItem('aura_subscription_plan', 'scale');
+                    }
+                    onLogin();
+                    return;
+                }
+
+                setError(signInError?.message || 'Falha no login por email.');
+                setPassword('');
                 return;
             }
 
