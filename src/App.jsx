@@ -8,14 +8,27 @@ import BriefingModal from './components/BriefingModal';
 import HistoryView from './components/HistoryView';
 import CRMView from './components/CRMView';
 import LoginScreen from './components/LoginScreen';
-import LandingPage from './pages/LandingPage'; // SALES LANDING PAGE
 import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 
 const App = () => {
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
-  const { isConnected, setIsConnected, currentView, briefing, setChats, activeChat, setActiveChat } = useStore();
+  const {
+    setIsConnected,
+    currentView,
+    setChats,
+    activeChat,
+    setActiveChat,
+    setSubscriptionPlan,
+    hasFeature,
+    switchView,
+    getActiveWhatsAppChannel,
+    setConfig,
+    updateWhatsAppChannel,
+    whatsappChannels,
+    setWhatsAppChannelStatus,
+  } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
@@ -23,8 +36,6 @@ const App = () => {
 
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // LANDING: Track if user clicked "Já sou Cliente" to show login
-  const [showLogin, setShowLogin] = useState(false);
 
   // AUTH: Check localStorage for authentication token
   useEffect(() => {
@@ -36,17 +47,18 @@ const App = () => {
       }
 
       try {
-        // Simple validation: Decode token and check prefix
         const decoded = atob(token);
-        if (decoded.startsWith('authenticated:')) {
+        const parsed = JSON.parse(decoded);
+        const validType = parsed?.type === 'authenticated';
+        const notExpired = typeof parsed?.expiresAt === 'number' && parsed.expiresAt > Date.now();
+
+        if (validType && notExpired) {
           setIsAuthenticated(true);
         } else {
-          console.warn('AURA: Invalid token format, logging out');
           localStorage.removeItem('auth_token');
           setIsAuthenticated(false);
         }
-      } catch (e) {
-        console.error('AURA: Token validation error', e);
+      } catch {
         localStorage.removeItem('auth_token');
         setIsAuthenticated(false);
       }
@@ -61,20 +73,53 @@ const App = () => {
   // LEAD PROCESSING: Check for pending leads from Landing Page
   useEffect(() => {
     if (isAuthenticated) {
+      const storedPlan = localStorage.getItem('aura_subscription_plan');
+      if (storedPlan) {
+        setSubscriptionPlan(storedPlan);
+      }
+
       const pendingLead = localStorage.getItem('aura_pending_lead');
       if (pendingLead) {
         try {
           const leadData = JSON.parse(pendingLead);
           console.log('AURA: Processing pending lead', leadData);
+          if (leadData?.plan) {
+            setSubscriptionPlan(leadData.plan);
+            localStorage.setItem('aura_subscription_plan', leadData.plan);
+          }
           useStore.getState().addLead(leadData);
-          useStore.getState().switchView('crm'); // Go to CRM to see the new lead
+          if (hasFeature('crm_basic')) {
+            switchView('crm'); // Go to CRM to see the new lead
+          }
           localStorage.removeItem('aura_pending_lead');
         } catch (e) {
           console.error('AURA: Failed to process pending lead', e);
         }
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, hasFeature, setSubscriptionPlan, switchView]);
+
+  // PLAN GUARD: Lite has no CRM
+  useEffect(() => {
+    if (currentView === 'crm' && !hasFeature('crm_basic')) {
+      switchView('dashboard');
+    }
+  }, [currentView, hasFeature, switchView]);
+
+  // CHANNEL SYNC: keep instanceName aligned with selected channel after hydration/login.
+  useEffect(() => {
+    const activeChannel = getActiveWhatsAppChannel();
+    if (activeChannel) {
+      if (String(activeChannel.instanceName || '').toLowerCase() === 'voxeflow') {
+        updateWhatsAppChannel(activeChannel.id, { instanceName: '' });
+        setConfig({ instanceName: '' });
+        return;
+      }
+    }
+    if (activeChannel?.instanceName) {
+      setConfig({ instanceName: activeChannel.instanceName });
+    }
+  }, [getActiveWhatsAppChannel, setConfig, updateWhatsAppChannel]);
 
   // Handle external modal triggers (from Hub/Settings)
   useEffect(() => {
@@ -96,35 +141,61 @@ const App = () => {
     if (!isAuthenticated) return;
 
     const checkConn = async () => {
-      const status = await WhatsAppService.checkConnection();
-      const open = status === 'open';
-      setIsConnected(open);
-      if (open) {
-        const data = await WhatsAppService.fetchChats();
-        if (data && data.length > 0) setChats(data);
+      const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
+      const connectedChannels = channels.filter((channel) => String(channel.instanceName || '').trim());
+
+      if (connectedChannels.length === 0) {
+        setIsConnected(false);
+        setChats([]);
+        return;
       }
+
+      const statusRows = await Promise.all(
+        connectedChannels.map(async (channel) => {
+          const connectionState = await WhatsAppService.checkConnection(channel.instanceName);
+          setWhatsAppChannelStatus(channel.id, connectionState);
+          return { channel, connectionState };
+        })
+      );
+
+      const openRows = statusRows.filter((row) => row.connectionState === 'open');
+      setIsConnected(openRows.length > 0);
+
+      if (openRows.length === 0) {
+        setChats([]);
+        return;
+      }
+
+      const chatsByChannel = await Promise.all(
+        openRows.map(({ channel }) =>
+          WhatsAppService.fetchChats(channel.instanceName, {
+            channelId: channel.id,
+            channelLabel: channel.label,
+          })
+        )
+      );
+
+      const merged = chatsByChannel.flat().sort((a, b) => {
+        const tsA = a?.lastMessage?.messageTimestamp || a?.messageTimestamp || a?.conversationTimestamp || 0;
+        const tsB = b?.lastMessage?.messageTimestamp || b?.messageTimestamp || b?.conversationTimestamp || 0;
+        return tsB - tsA;
+      });
+
+      setChats(merged);
     };
     checkConn();
     const itv = setInterval(checkConn, 30000);
     return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated]);
+  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus]);
 
   // AUTH: Handle logout
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     setIsAuthenticated(false);
-    setShowLogin(false); // Return to landing page
   };
 
-  // LANDING: If not authenticated and user hasn't clicked "Já sou Cliente", show landing page
-  if (!isAuthenticated && !showLogin) {
-    console.log('AURA: Rendering Landing Page');
-    return <LandingPage onGetStarted={() => setShowLogin(true)} />;
-  }
-
-  // AUTH: If not authenticated but user wants to login, show login screen
-  if (!isAuthenticated && showLogin) {
-    console.log('AURA: Rendering Login Screen');
+  // AUTH: /app should always show login when unauthenticated
+  if (!isAuthenticated) {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }
 
@@ -148,8 +219,6 @@ const App = () => {
       <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
         {currentView === 'crm' ? (
           <CRMView />
-        ) : currentView === 'dashboard' ? (
-          <DashboardView />
         ) : activeChat ? (
           <ChatArea isArchived={currentView === 'history'} onBack={() => setActiveChat(null)} />
         ) : (

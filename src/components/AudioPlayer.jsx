@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, Pause, Volume2 } from 'lucide-react';
 import WhatsAppService from '../services/whatsapp';
 
-const AudioPlayer = ({ messageKey }) => {
+const AudioPlayer = ({ messageKey, mimeType }) => {
     const [audioUrl, setAudioUrl] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -12,7 +12,10 @@ const AudioPlayer = ({ messageKey }) => {
     useEffect(() => {
         const loadAudio = async () => {
             try {
-                const base64Data = await WhatsAppService.fetchMediaUrl(messageKey);
+                const base64Data = await WhatsAppService.fetchMediaUrl(messageKey, {
+                    mediaType: 'audio',
+                    mimeType: mimeType || null,
+                });
                 if (base64Data) {
                     setAudioUrl(base64Data);
                 } else {
@@ -29,7 +32,7 @@ const AudioPlayer = ({ messageKey }) => {
         if (messageKey) {
             loadAudio();
         }
-    }, [messageKey]);
+    }, [messageKey, mimeType]);
 
     const togglePlay = () => {
         if (!audioRef.current) return;

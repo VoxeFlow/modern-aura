@@ -4,11 +4,12 @@ import { useStore } from '../store/useStore';
 import { formatJid } from '../utils/formatter';
 import OpenAIService from '../services/openai';
 
-const CRMCard = ({ chat, tag }) => {
+const CRMCard = ({ chat, tag, draggable = false }) => {
     const { setActiveChat, chatNextSteps, setNextSteps, messages } = useStore();
     const [analyzing, setAnalyzing] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
-    const jid = chat.remoteJid || chat.jid || chat.id;
+    const jid = chat.id || chat.remoteJid || chat.jid;
     const msg = chat.lastMessage?.message || chat.message || {};
 
     let name = [
@@ -80,30 +81,23 @@ const CRMCard = ({ chat, tag }) => {
     };
 
     const handleOpenChat = () => {
+        if (isDragging) return;
         setActiveChat({ id: jid, name: patientName });
         useStore.getState().setCurrentView('dashboard');
     };
 
-    const getPriorityColor = (priority) => {
-        switch (priority) {
-            case 'high': return '#ef4444';
-            case 'medium': return '#f59e0b';
-            case 'low': return '#10b981';
-            default: return '#6b7280';
-        }
-    };
-
-    const getPriorityLabel = (priority) => {
-        switch (priority) {
-            case 'high': return '🔴 Alta';
-            case 'medium': return '🟡 Média';
-            case 'low': return '🟢 Baixa';
-            default: return 'Normal';
-        }
-    };
-
     return (
-        <div className="crm-card" onClick={handleOpenChat}>
+        <div
+            className="crm-card"
+            onClick={handleOpenChat}
+            draggable={draggable}
+            onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', jid);
+                setIsDragging(true);
+            }}
+            onDragEnd={() => setIsDragging(false)}
+        >
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
                     {patientName}

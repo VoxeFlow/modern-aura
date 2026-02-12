@@ -15,9 +15,36 @@ export function useChatComposer({
     openPrompt,
 }) {
     const appendPendingOutgoing = useStore((state) => state.appendPendingOutgoing);
+    const recordLearningEvent = useStore((state) => state.recordLearningEvent);
     const [recording, setRecording] = useState(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
+    const audioMimeTypeRef = useRef('');
+    const outboundJid = activeChat?.chatJid || activeChat?.sendTargetJid || activeChat?.remoteJid || activeChat?.jid || activeChat?.id;
+
+    const getPreferredAudioMimeType = () => {
+        const candidates = [
+            'audio/ogg;codecs=opus',
+            'audio/webm;codecs=opus',
+            'audio/webm',
+        ];
+
+        for (const candidate of candidates) {
+            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(candidate)) {
+                return candidate;
+            }
+        }
+
+        return '';
+    };
+
+    const getAudioExtension = (mimeType) => {
+        if (!mimeType) return 'webm';
+        if (mimeType.includes('ogg')) return 'ogg';
+        if (mimeType.includes('webm')) return 'webm';
+        if (mimeType.includes('mp4')) return 'm4a';
+        return 'bin';
+    };
 
     const promptManualPhoneAndRetry = useCallback((jid, initialPhone, retryText, chatData) => {
         const initialDigits = String(initialPhone || '').replace(/\D/g, '');
@@ -61,7 +88,7 @@ export function useChatComposer({
     }, [appendPendingOutgoing, loadMessages, openConfirm, openPrompt, setInput, setSending]);
 
     const handleMicClick = useCallback(async () => {
-        if (!activeChat?.id) return;
+        if (!outboundJid) return;
 
         if (recording) {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -73,9 +100,13 @@ export function useChatComposer({
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            const preferredMimeType = getPreferredAudioMimeType();
+            const mediaRecorder = preferredMimeType
+                ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+                : new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
+            audioMimeTypeRef.current = mediaRecorder.mimeType || preferredMimeType || '';
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -84,13 +115,21 @@ export function useChatComposer({
             };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp4' });
-                const audioFile = new File([audioBlob], 'voice_message.mp3', { type: 'audio/mp4' });
+                const finalMimeType = audioMimeTypeRef.current || 'audio/webm';
+                const extension = getAudioExtension(finalMimeType);
+                const audioBlob = new Blob(audioChunksRef.current, { type: finalMimeType });
+                const audioFile = new File([audioBlob], `voice_message.${extension}`, { type: finalMimeType });
 
                 setSending(true);
                 try {
-                    await WhatsAppService.sendMedia(activeChat.id, audioFile, '', true);
-                    loadMessages();
+                    const response = await WhatsAppService.sendMedia(outboundJid, audioFile, '', true);
+                    if (response && !response.error) {
+                        loadMessages();
+                    } else {
+                        const reason = response?.message || 'Falha ao enviar áudio.';
+                        console.error('Audio Send Failed:', response);
+                        alert(`❌ ${reason}`);
+                    }
                 } catch (error) {
                     console.error('Audio Send Error:', error);
                     alert('❌ Erro ao enviar áudio.');
@@ -107,12 +146,45 @@ export function useChatComposer({
             console.error('Mic Access Error:', error);
             alert('❌ Erro ao acessar microfone. Verifique as permissões.');
         }
-    }, [activeChat?.id, loadMessages, recording, setSending]);
+    }, [loadMessages, outboundJid, recording, setSending]);
 
     const handleSend = useCallback(async (e) => {
         if (e) e.preventDefault();
-        const jid = activeChat?.id;
+        const jid = outboundJid;
         if (!input.trim() || sending || !jid) return;
+        const learningChatId = activeChat?.id || jid;
+
+        const finalText = input.trim();
+        const suggestionText = String(suggestion || '').trim();
+        let source = 'manual';
+        let editedSuggestion = false;
+        let usedMagicWand = false;
+
+        if (suggestionText && finalText === suggestionText) {
+            source = 'ai_suggestion_accepted';
+        } else if (suggestionText && finalText !== suggestionText) {
+            source = 'ai_suggestion_edited';
+            editedSuggestion = true;
+        }
+
+        const learningEvents = useStore.getState().learningEvents || [];
+        const recentWand = [...learningEvents]
+            .reverse()
+            .find((event) =>
+                event?.type === 'magic_wand_generated' &&
+                event?.chatId === jid &&
+                Date.now() - Number(event?.timestamp || 0) < 30 * 60 * 1000
+            );
+
+        if (recentWand) {
+            if (String(recentWand.enhancedText || '').trim() === finalText) {
+                source = 'magic_wand_accepted';
+                usedMagicWand = true;
+            } else if (editedSuggestion) {
+                source = 'magic_wand_edited';
+                usedMagicWand = true;
+            }
+        }
 
         setSending(true);
         try {
@@ -120,6 +192,38 @@ export function useChatComposer({
 
             if (res && !res.error) {
                 appendPendingOutgoing(jid, input, res);
+
+                recordLearningEvent({
+                    type: 'message_sent',
+                    chatId: learningChatId,
+                    source,
+                    finalText,
+                    suggestionText: suggestionText || undefined,
+                    edited: editedSuggestion,
+                    usedMagicWand,
+                });
+
+                if (editedSuggestion && suggestionText) {
+                    recordLearningEvent({
+                        type: 'suggestion_edited_accepted',
+                        chatId: learningChatId,
+                        source: 'ai_suggestion_edited',
+                        suggestionText,
+                        finalText,
+                    });
+                }
+
+                if (source === 'magic_wand_accepted') {
+                    recordLearningEvent({
+                        type: 'magic_wand_accepted',
+                        chatId: learningChatId,
+                        source,
+                        enhancedText: finalText,
+                        suggestionText: suggestionText || undefined,
+                        finalText,
+                    });
+                }
+
                 setInput('');
                 await loadMessages();
                 setTimeout(() => {
@@ -143,7 +247,7 @@ export function useChatComposer({
             openConfirm('Erro', `Erro inesperado: ${error.message}`);
         }
         setSending(false);
-    }, [activeChat, appendPendingOutgoing, input, loadMessages, openConfirm, promptManualPhoneAndRetry, sending, setInput, setSending]);
+    }, [activeChat, appendPendingOutgoing, input, loadMessages, openConfirm, outboundJid, promptManualPhoneAndRetry, recordLearningEvent, sending, setInput, setSending, suggestion]);
 
     const useSuggestion = useCallback(() => {
         if (suggestion && !suggestion.includes('...')) {
@@ -163,7 +267,7 @@ export function useChatComposer({
         openPrompt(`Enviar: ${file.name}`, '', async (caption) => {
             try {
                 setSending(true);
-                const res = await WhatsAppService.sendMedia(activeChat.id, file, caption || '');
+                const res = await WhatsAppService.sendMedia(outboundJid, file, caption || '');
                 if (res) {
                     loadMessages();
                 } else {
@@ -177,7 +281,7 @@ export function useChatComposer({
                 setSending(false);
             }
         });
-    }, [activeChat?.id, loadMessages, openConfirm, openPrompt, setSending, setShowAttachMenu]);
+    }, [loadMessages, openConfirm, openPrompt, outboundJid, setSending, setShowAttachMenu]);
 
     // This now only handles the menu logic if needed, or can be removed if handled in UI
     const handleAttachmentMenuOpen = useCallback(() => {

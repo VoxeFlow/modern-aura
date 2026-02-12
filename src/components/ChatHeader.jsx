@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, Pencil, Wand2, Archive, Tag } from 'lucide-react';
 import { formatJid } from '../utils/formatter';
+import { useStore } from '../store/useStore';
 
 const ChatHeader = ({
     activeChat,
@@ -13,6 +14,9 @@ const ChatHeader = ({
     onArchive,
     onUnarchive,
 }) => {
+    const activeChannel = useStore((state) => state.getActiveWhatsAppChannel());
+    const displayJid = activeChat?.chatJid || activeChat?.sendTargetJid || activeChat?.remoteJid || activeChat?.jid || activeChat?.id;
+    const channelLabel = activeChat?.channelLabel || activeChannel?.label;
     return (
         <header className="chat-header glass-panel">
             <div className="active-info" style={{ flex: 1 }}>
@@ -25,7 +29,7 @@ const ChatHeader = ({
                         <ChevronLeft size={24} color="var(--accent-primary)" />
                     </button>
                     <h3 style={{ margin: 0 }}>
-                        {activeChat.name && activeChat.name !== formatJid(activeChat.id) ? activeChat.name : formatJid(activeChat.id)}
+                        {activeChat.name && activeChat.name !== formatJid(displayJid) ? activeChat.name : formatJid(displayJid)}
                     </h3>
                     {chatTags[activeChat.id] && (() => {
                         const tag = tags.find((item) => item.id === chatTags[activeChat.id]);
@@ -49,6 +53,21 @@ const ChatHeader = ({
                             </span>
                         );
                     })()}
+                    {channelLabel && (
+                        <span
+                            style={{
+                                fontSize: '11px',
+                                background: 'rgba(29,32,38,0.07)',
+                                color: '#4a4a4c',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(0,0,0,0.12)',
+                                fontWeight: 600,
+                            }}
+                        >
+                            Canal: {channelLabel}
+                        </span>
+                    )}
 
 
                 </div>

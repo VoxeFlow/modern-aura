@@ -1005,12 +1005,20 @@ input:focus {
 
 .crm-board {
   display: flex;
-  gap: 24px;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 10px 0 20px;
   flex: 1;
-  align-items: flex-start;
+  min-height: 0;
+}
+
+.crm-board-track {
+  display: flex;
+  gap: 20px;
+  min-width: min-content;
+  width: max-content;
+  height: 100%;
+  align-items: stretch;
 }
 
 .crm-column {
@@ -1022,6 +1030,14 @@ input:focus {
   flex-direction: column;
   height: 100%;
   border: 1px solid rgba(0, 0, 0, 0.03);
+  min-height: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.crm-column[data-drop-active="true"] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.25);
+  background: #fffcf5;
 }
 
 .column-header {
@@ -1030,6 +1046,22 @@ input:focus {
   font-size: 14px;
   color: #1d1d1f;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.column-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.column-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.column-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
 }
 
 .crm-card {

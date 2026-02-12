@@ -70,7 +70,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
                 setLastAnalysis("");
                 setStatus('idle');
             }
-        } catch (e) {
+        } catch {
             setStatus('idle');
         }
     };
@@ -99,7 +99,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
             syncBriefingText(newKB);
             setEditingId(null);
             setStatus('idle');
-        } catch (e) {
+        } catch {
             setStatus('idle');
         }
     };

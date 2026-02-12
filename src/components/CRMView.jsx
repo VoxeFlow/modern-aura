@@ -3,11 +3,20 @@ import { useStore } from '../store/useStore';
 import CRMColumn from './CRMColumn';
 
 const CRMView = () => {
-    const { tags, chats, chatTags } = useStore();
+    const { tags, chats, chatTags, setTag, isConnected } = useStore();
+
+    const safeChats = Array.isArray(chats) ? chats : [];
+    const leadsInSession = safeChats.filter((chat) => {
+        const jid = chat?.id || chat?.remoteJid || chat?.jid;
+        return Boolean(jid && chatTags[jid]);
+    });
 
     // Calculate stats
-    const totalLeads = Object.keys(chatTags).length;
-    const fechadosCount = Object.values(chatTags).filter(t => t === 'fechado').length;
+    const totalLeads = leadsInSession.length;
+    const fechadosCount = leadsInSession.filter((chat) => {
+        const jid = chat?.id || chat?.remoteJid || chat?.jid;
+        return chatTags[jid] === 'fechado';
+    }).length;
     const conversionRate = totalLeads > 0 ? Math.round((fechadosCount / totalLeads) * 100) : 0;
 
     return (
@@ -31,11 +40,17 @@ const CRMView = () => {
                 </div>
             </div>
 
-            <div className="crm-board" style={{ overflowX: 'auto', paddingBottom: '20px' }}>
-                <div style={{ display: 'flex', gap: '20px', minWidth: 'min-content' }}>
+            {!isConnected && (
+                <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '12px', background: '#FFF8E8', border: '1px solid #F1D9A5', color: '#8A6D3A', fontSize: '13px', fontWeight: 600 }}>
+                    WhatsApp desconectado: o CRM exibe apenas os leads carregados nesta sessão.
+                </div>
+            )}
+
+            <div className="crm-board">
+                <div className="crm-board-track">
                     {tags.map(tag => {
                         const tagChats = chats.filter(c => {
-                            const jid = c.remoteJid || c.jid || c.id;
+                            const jid = c.id || c.remoteJid || c.jid;
                             return chatTags[jid] === tag.id;
                         });
 
@@ -44,6 +59,7 @@ const CRMView = () => {
                                 key={tag.id}
                                 tag={tag}
                                 chats={tagChats}
+                                onDropChat={(chatId) => setTag(chatId, tag.id)}
                             />
                         );
                     })}

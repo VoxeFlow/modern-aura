@@ -1,34 +1,50 @@
 import { useState } from 'react';
-import logoLight from '../assets/logo-light.png';
 import logoDark from '../assets/logo-dark.png';
 import './LoginScreen.css';
+
+const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
 export default function LoginScreen({ onLogin }) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isMasterMode, setIsMasterMode] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState('pro');
 
     const handleSubmit = (e) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Get password from environment variable
-        const correctPassword = import.meta.env.VITE_AUTH_PASSWORD || 'VoxeFlow2024!';
-        console.log('AURA Login Debug:', {
-            envSet: !!import.meta.env.VITE_AUTH_PASSWORD,
-            expectedLength: correctPassword.length,
-            match: password === correctPassword
-        });
+        const userPassword = import.meta.env.VITE_AUTH_PASSWORD;
+        const masterPassword = import.meta.env.VITE_MASTER_PASSWORD;
 
         setTimeout(() => {
-            if (password === correctPassword) {
-                // Store authentication token
-                const token = btoa(`authenticated:${Date.now()}`);
+            const isValid = isMasterMode ? (masterPassword && password === masterPassword) : (userPassword && password === userPassword);
+            if (isValid) {
+                const tokenPayload = {
+                    type: 'authenticated',
+                    issuedAt: Date.now(),
+                    expiresAt: Date.now() + AUTH_TTL_MS,
+                    role: isMasterMode ? 'master' : 'user',
+                };
+                const token = btoa(JSON.stringify(tokenPayload));
                 localStorage.setItem('auth_token', token);
+                if (isMasterMode) {
+                    localStorage.setItem('aura_master_mode', '1');
+                    localStorage.setItem('aura_subscription_plan', selectedPlan);
+                } else {
+                    localStorage.removeItem('aura_master_mode');
+                }
                 onLogin();
             } else {
-                setError('Senha incorreta. Tente novamente.');
+                if (isMasterMode && !masterPassword) {
+                    setError('Senha master não configurada. Defina VITE_MASTER_PASSWORD.');
+                } else if (!isMasterMode && !userPassword) {
+                    setError('Senha padrão não configurada. Defina VITE_AUTH_PASSWORD.');
+                } else {
+                    setError('Senha incorreta. Tente novamente.');
+                }
                 setPassword('');
             }
             setIsLoading(false);
@@ -46,8 +62,41 @@ export default function LoginScreen({ onLogin }) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="login-form">
+                    <div className={`master-toggle ${isMasterMode ? 'active' : ''}`}>
+                        <div>
+                            <h3>Modo master</h3>
+                            <p>Ativa troca de plano para testes</p>
+                        </div>
+                        <label className="switch">
+                            <input
+                                id="masterMode"
+                                type="checkbox"
+                                checked={isMasterMode}
+                                onChange={(e) => setIsMasterMode(e.target.checked)}
+                                disabled={isLoading}
+                            />
+                            <span className="slider" />
+                        </label>
+                    </div>
+
+                    {isMasterMode && (
+                        <div className="form-group master-plan-group">
+                            <label htmlFor="plan">Plano para testes</label>
+                            <select
+                                id="plan"
+                                value={selectedPlan}
+                                onChange={(e) => setSelectedPlan(e.target.value)}
+                                disabled={isLoading}
+                            >
+                                <option value="lite">Lite</option>
+                                <option value="pro">Pro</option>
+                                <option value="scale">Scale</option>
+                            </select>
+                        </div>
+                    )}
+
                     <div className="form-group">
-                        <label htmlFor="password">Senha de Acesso</label>
+                        <label htmlFor="password">{isMasterMode ? 'Senha Master' : 'Senha de Acesso'}</label>
                         <input
                             id="password"
                             type="password"
@@ -88,7 +137,7 @@ export default function LoginScreen({ onLogin }) {
                 </form>
 
                 <div className="login-footer">
-                    <p>Protected by VoxeFlow Security</p>
+                    <p>Protected by AURA Security</p>
                     <p style={{ fontSize: '10px', opacity: 0.5, marginTop: '5px' }}>v1.3.0 (Stable)</p>
                 </div>
             </div>

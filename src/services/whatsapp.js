@@ -117,15 +117,16 @@ class WhatsAppService {
         });
     }
 
-    async checkConnection() {
+    async checkConnection(instanceOverride = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName) return 'disconnected';
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance) return 'disconnected';
 
         // Ensure socket is connected
         if (!this.socket) this.connectSocket();
 
         try {
-            const data = await this.request(`/instance/connectionState/${instanceName}`);
+            const data = await this.request(`/instance/connectionState/${targetInstance}`);
 
             if (data?.instance?.state) return data.instance.state;
 
@@ -263,9 +264,24 @@ class WhatsAppService {
     }
 
 
-    async fetchMediaUrl(messageKey) {
+    inferMimeTypeFromBase64(base64, mediaType = null) {
+        const head = String(base64 || '').slice(0, 32);
+        if (head.startsWith('/9j/')) return 'image/jpeg';
+        if (head.startsWith('iVBORw0KGgo')) return 'image/png';
+        if (head.startsWith('R0lGOD')) return 'image/gif';
+        if (head.startsWith('UklGR')) return mediaType === 'audio' ? 'audio/wav' : 'image/webp';
+        if (head.startsWith('JVBERi0')) return 'application/pdf';
+        if (head.startsWith('UEsDB')) return 'application/zip';
+        if (head.startsWith('T2dnUw')) return 'audio/ogg';
+        if (head.startsWith('SUQz')) return 'audio/mpeg';
+        if (head.startsWith('AAAAIGZ0eX')) return mediaType === 'audio' ? 'audio/mp4' : 'video/mp4';
+        return mediaType === 'audio' ? 'audio/ogg' : 'application/octet-stream';
+    }
+
+    async fetchMediaUrl(messageKey, options = {}) {
         const { instanceName } = useStore.getState();
         if (!instanceName || !messageKey) return null;
+        const { mimeType = null, mediaType = null } = options;
 
         try {
             const data = await this.request(`/chat/getBase64FromMediaMessage/${instanceName}`, 'POST', {
@@ -280,28 +296,34 @@ class WhatsAppService {
 
             if (!base64) return null;
 
-            // If the base64 doesn't start with "data:", add the proper prefix
-            // Evolution API typically returns audio/ogg for WhatsApp voice messages
-            if (!base64.startsWith('data:')) {
-                base64 = `data:audio/ogg;base64,${base64}`;
+            // Keep original data URI when backend already returns one.
+            if (base64.startsWith('data:')) {
+                return base64;
             }
 
-            return base64;
+            const apiMimeType = data?.mimetype || data?.mimeType || data?.mediaType || null;
+            const resolvedMimeType =
+                mimeType ||
+                apiMimeType ||
+                this.inferMimeTypeFromBase64(base64, mediaType);
+
+            return `data:${resolvedMimeType};base64,${base64}`;
         } catch (e) {
             console.error("Media fetch error:", e);
             return null;
         }
     }
 
-    async fetchChats() {
+    async fetchChats(instanceOverride = null, channelMeta = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName) return [];
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance) return [];
 
         // v2 standard: POST to findChats
-        const data = await this.request(`/chat/findChats/${instanceName}`, 'POST', {});
+        const data = await this.request(`/chat/findChats/${targetInstance}`, 'POST', {});
 
         // Fetch Address Book to help resolve LIDs
-        const contactsList = await this.fetchContacts();
+        const contactsList = await this.fetchContacts(targetInstance);
         const contactsByNumber = new Map(); // number -> display name
         contactsList.forEach(c => {
             const jid = c.id || c.jid;
@@ -327,7 +349,7 @@ class WhatsAppService {
                 .map((chat) => chat?.remoteJid || chat?.jid || chat?.id || chat?.key?.remoteJid)
                 .filter((jid) => typeof jid === 'string' && jid.includes('@lid'))
         )];
-        const lidVerification = await this.verifyWhatsAppNumbersBulk(lidRawJids);
+        const lidVerification = await this.verifyWhatsAppNumbersBulk(lidRawJids, targetInstance);
         const finalMap = new Map();
 
         // Canonicalize each chat identity and collapse equivalent records.
@@ -465,7 +487,7 @@ class WhatsAppService {
         // Sometimes the mapping logic above might miss edge cases if LIDs and Phones don't have a direct link yet.
         console.log(`AURA: Running deduplication on ${sorted.length} chats...`);
         const uniquePhones = new Set();
-        return sorted.filter(chat => {
+        const deduped = sorted.filter(chat => {
             const rawId = chat.id || chat.jid || chat.remoteJid;
             const digits = this.getNum(rawId);
 
@@ -478,14 +500,23 @@ class WhatsAppService {
             // If it's a short code or group, keep it
             return true;
         });
+
+        return deduped.map((chat) => ({
+            ...chat,
+            sourceInstanceName: targetInstance,
+            channelId: channelMeta?.channelId || chat.channelId || null,
+            channelLabel: channelMeta?.channelLabel || chat.channelLabel || targetInstance,
+            chatKey: `${channelMeta?.channelId || targetInstance}::${chat.id || chat.jid || chat.remoteJid}`,
+        }));
     }
 
-    async fetchContacts() {
+    async fetchContacts(instanceOverride = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName) return [];
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance) return [];
         try {
             // v2 standard: POST to findContacts to get address book
-            const data = await this.request(`/chat/findContacts/${instanceName}`, 'POST', {});
+            const data = await this.request(`/chat/findContacts/${targetInstance}`, 'POST', {});
             const list = Array.isArray(data) ? data : (data?.records || data?.contacts || []);
             return Array.isArray(list) ? list : [];
         } catch (e) {
@@ -494,12 +525,13 @@ class WhatsAppService {
         }
     }
 
-    async verifyWhatsAppNumbersBulk(numbersOrJids = []) {
+    async verifyWhatsAppNumbersBulk(numbersOrJids = [], instanceOverride = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName || !Array.isArray(numbersOrJids) || numbersOrJids.length === 0) return [];
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance || !Array.isArray(numbersOrJids) || numbersOrJids.length === 0) return [];
 
         try {
-            const response = await this.request(`/chat/whatsappNumbers/${instanceName}`, 'POST', {
+            const response = await this.request(`/chat/whatsappNumbers/${targetInstance}`, 'POST', {
                 numbers: numbersOrJids,
             });
 
@@ -533,10 +565,11 @@ class WhatsAppService {
         return list[0] || null;
     }
 
-    async fetchMessages(jid, linkedJid = null, chatData = null) {
+    async fetchMessages(jid, linkedJid = null, chatData = null, instanceOverride = null) {
         const { instanceName } = useStore.getState();
+        const targetInstance = instanceOverride || instanceName;
         const cleanJid = this.standardizeJid(jid);
-        if (!instanceName || !cleanJid) return [];
+        if (!targetInstance || !cleanJid) return [];
 
         const tryFetch = async (targetJid, altJid = null) => {
             if (!targetJid) return [];
@@ -544,7 +577,7 @@ class WhatsAppService {
                 const keyWhere = { remoteJid: targetJid };
                 if (altJid) keyWhere.remoteJidAlt = altJid;
 
-                const data = await this.request(`/chat/findMessages/${instanceName}`, 'POST', {
+                const data = await this.request(`/chat/findMessages/${targetInstance}`, 'POST', {
                     where: {
                         key: keyWhere,
                     },
@@ -1076,16 +1109,10 @@ class WhatsAppService {
     }
 
     async sendMedia(jid, file, caption = '', isAudio = false) {
-        const { instanceName } = useStore.getState();
+        const { instanceName, chats } = useStore.getState();
         if (!instanceName || !jid || !file) return null;
 
         try {
-            // Strip internal prefixes from our deduplication logic
-            let rawJid = String(jid).replace(/^(phone:|jid:)/, '');
-            const cleanJid = this.standardizeJid(rawJid);
-
-            if (!cleanJid) return null;
-
             // Convert file to base64
             const base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -1105,34 +1132,86 @@ class WhatsAppService {
             else if (file.type.startsWith('image/')) mediatype = 'image';
             else if (file.type.startsWith('video/')) mediatype = 'video';
 
-            const payload = {
-                number: cleanJid,
-                mediatype,
-                mimetype: file.type || 'audio/mp4',
-                caption: caption || file.name,
-                fileName: file.name,
-                media: base64
-            };
+            const rawJid = String(jid).replace(/^(phone:|jid:)/, '');
+            const cleanJid = this.standardizeJid(rawJid);
+            if (!cleanJid) return { error: true, message: 'Destinatário inválido para envio de mídia.' };
 
-            // Options for Audio PTT (Voice Note)
-            if (mediatype === 'audio') {
-                payload.ptt = true;     // Evolution v1 legacy
-                payload.options = {     // Evolution v2
-                    ptt: true,
-                    delay: 1200,
-                    presence: 'recording'
-                };
-            } else {
-                payload.options = {
-                    delay: 1200,
-                    presence: 'composing'
-                };
+            const chatData = Array.isArray(chats)
+                ? chats.find((c) => c.id === jid || c.id === cleanJid || c.remoteJid === jid || c.remoteJid === cleanJid || c.jid === jid || c.jid === cleanJid)
+                : null;
+
+            let phoneNumber = await this.ensurePhoneNumber(cleanJid, chatData);
+            const sendHints = this.getSendHints(chatData);
+            const linkedLid = cleanJid.includes('@lid') ? cleanJid : (chatData?.linkedLid || null);
+
+            const sendCandidates = this.buildSendCandidates({
+                targetJid: chatData?.sendTargetJid || cleanJid,
+                linkedLid,
+                verifiedJid: null,
+                phoneNumber,
+                lidContext: Boolean(linkedLid),
+                sendHints,
+            });
+
+            const audioProfiles = [
+                { mimetype: file.type || 'audio/webm', fileName: file.name || 'voice_message.webm' },
+                { mimetype: 'audio/ogg;codecs=opus', fileName: 'voice_message.ogg' },
+                { mimetype: 'audio/mp4', fileName: 'voice_message.m4a' },
+            ];
+
+            const genericProfile = { mimetype: file.type || 'application/octet-stream', fileName: file.name || 'arquivo' };
+            const profiles = mediatype === 'audio' ? audioProfiles : [genericProfile];
+
+            let lastError = null;
+            for (const number of sendCandidates) {
+                if (mediatype === 'audio') {
+                    const audioPayload = {
+                        number,
+                        audio: base64,
+                        encoding: true,
+                        options: { delay: 1200, presence: 'recording' },
+                    };
+
+                    const audioResult = await this.request(`/message/sendWhatsAppAudio/${instanceName}`, 'POST', audioPayload);
+                    if (audioResult && !audioResult.error) {
+                        this.persistSuccessfulRoute(cleanJid, number, chatData);
+                        return audioResult;
+                    }
+                    lastError = audioResult;
+                }
+
+                for (const profile of profiles) {
+                    const payload = {
+                        number,
+                        mediatype,
+                        mimetype: profile.mimetype,
+                        caption: mediatype === 'audio' ? '' : (caption || file.name),
+                        fileName: profile.fileName,
+                        media: base64,
+                        options: mediatype === 'audio'
+                            ? { ptt: true, delay: 1200, presence: 'recording' }
+                            : { delay: 1200, presence: 'composing' },
+                    };
+
+                    if (mediatype === 'audio') payload.ptt = true; // legacy support
+
+                    const result = await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
+                    if (result && !result.error) {
+                        this.persistSuccessfulRoute(cleanJid, number, chatData);
+                        return result;
+                    }
+                    lastError = result;
+                }
             }
 
-            return await this.request(`/message/sendMedia/${instanceName}`, 'POST', payload);
+            return {
+                error: true,
+                message: lastError?.message || 'Falha ao enviar áudio/mídia.',
+                details: lastError,
+            };
         } catch (e) {
             console.error("Send Media Error:", e);
-            return null;
+            return { error: true, message: e.message || 'Erro inesperado ao enviar mídia.' };
         }
     }
 }

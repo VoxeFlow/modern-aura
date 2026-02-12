@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Paperclip, Wand2, Send, Mic, Image, Camera, FileText } from 'lucide-react';
+import { useStore } from '../store/useStore';
 
 const ChatComposer = ({
     showAttachMenu,
@@ -16,6 +17,7 @@ const ChatComposer = ({
     handleMicClick,
 }) => {
     const fileInputRef = useRef(null);
+    const hasMagicWand = useStore((state) => state.hasFeature('magic_wand'));
 
     const handleOptionClick = (type) => {
         if (!fileInputRef.current) return;
@@ -172,8 +174,8 @@ const ChatComposer = ({
                     type="button"
                     className={`btn-enhance ${input.trim() ? 'active' : ''}`}
                     onClick={() => handleEnhance(input)}
-                    disabled={!input.trim() || isEnhancing || sending}
-                    title="Aprimorar Resposta"
+                    disabled={!hasMagicWand || !input.trim() || isEnhancing || sending}
+                    title={hasMagicWand ? 'Aprimorar Resposta' : 'Disponível nos planos Pro e Scale'}
                 >
                     <Wand2 size={18} className={isEnhancing ? 'spin' : ''} />
                 </button>

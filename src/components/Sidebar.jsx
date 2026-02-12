@@ -1,10 +1,12 @@
 import { X, LayoutDashboard, Kanban, History, Settings, LogOut, Brain, Zap } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import logoLight from '../assets/logo-light.png';
-import logoDark from '../assets/logo-dark.png';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
-    const { activeChat, currentView, setCurrentView, setActiveChat, switchView } = useStore();
+    const { activeChat, currentView, switchView, hasFeature, subscriptionPlan, getPlanConfig, setSubscriptionPlan } = useStore();
+    const hasCrm = hasFeature('crm_basic');
+    const planLabel = getPlanConfig()?.label || String(subscriptionPlan || '').toUpperCase();
+    const isMasterMode = localStorage.getItem('aura_master_mode') === '1';
     return (
         <>
             {/* Mobile Overlay */}
@@ -23,9 +25,11 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                         <li className={currentView === 'dashboard' ? 'active' : ''} onClick={() => switchView('dashboard')} title="Dashboard">
                             <LayoutDashboard size={24} />
                         </li>
-                        <li className={currentView === 'crm' ? 'active' : ''} onClick={() => switchView('crm')} title="CRM Pipeline">
-                            <Kanban size={24} />
-                        </li>
+                        {hasCrm && (
+                            <li className={currentView === 'crm' ? 'active' : ''} onClick={() => switchView('crm')} title="CRM Pipeline">
+                                <Kanban size={24} />
+                            </li>
+                        )}
                         <li className={currentView === 'history' ? 'active' : ''} onClick={() => switchView('history')} title="Histórico">
                             <History size={24} />
                         </li>
@@ -107,6 +111,31 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                         <div style={{ fontSize: '10px', opacity: 0.3, marginTop: '10px', color: 'var(--text-muted)' }}>
                             v11.3.3.fixed
                         </div>
+                        <div style={{ fontSize: '10px', opacity: 0.5, color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                            Plano: {planLabel}
+                        </div>
+                        {isMasterMode && (
+                            <select
+                                value={subscriptionPlan}
+                                onChange={(e) => {
+                                    setSubscriptionPlan(e.target.value);
+                                    localStorage.setItem('aura_subscription_plan', e.target.value);
+                                }}
+                                style={{
+                                    marginTop: '6px',
+                                    fontSize: '10px',
+                                    borderRadius: '8px',
+                                    padding: '3px 6px',
+                                    border: '1px solid rgba(197, 160, 89, 0.35)',
+                                    background: '#fff',
+                                    color: '#1d1d1f',
+                                }}
+                            >
+                                <option value="lite">Lite</option>
+                                <option value="pro">Pro</option>
+                                <option value="scale">Scale</option>
+                            </select>
+                        )}
 
                         <div className="conn-status" style={{ fontSize: '8px', opacity: 0.3, marginTop: '2px', textAlign: 'center', wordBreak: 'break-all', padding: '0 5px' }}>
                             {activeChat?.id ? activeChat.id : ''}
