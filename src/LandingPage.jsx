@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Zap, Brain, TrendingUp, Users, Shield, ArrowRight } from 'lucide-react';
 import logoLight from '../assets/logo-light.png';
-import logoDark from '../assets/logo-dark.png';
 // Decoupled: No more useStore import
 import './LandingPage.css';
 

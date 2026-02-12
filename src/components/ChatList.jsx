@@ -7,21 +7,60 @@ import { getChatDisplayName, getChatJid, getChatTimestampMs } from '../utils/cha
 import ChatListItem from './ChatListItem';
 
 const ChatList = ({ onOpenMenu }) => {
-    const { chats, setChats, activeChat, setActiveChat, isConnected } = useStore();
+    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel } = useStore();
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [channelFilter, setChannelFilter] = useState('all');
     const archivedChatIds = useArchivedChats();
 
     const loadData = async () => {
         if (loading) return;
         setLoading(true);
         try {
-            const data = await WhatsAppService.fetchChats();
-            if (data) setChats(data);
+            const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
+            const connectedChannels = channels.filter((channel) => String(channel.instanceName || '').trim());
+            if (connectedChannels.length === 0) {
+                setChats([]);
+                return;
+            }
+
+            const statusRows = await Promise.all(
+                connectedChannels.map(async (channel) => {
+                    const connectionState = await WhatsAppService.checkConnection(channel.instanceName);
+                    setWhatsAppChannelStatus(channel.id, connectionState);
+                    return { channel, connectionState };
+                })
+            );
+
+            const openRows = statusRows.filter((row) => row.connectionState === 'open');
+            if (openRows.length === 0) {
+                setChats([]);
+                return;
+            }
+
+            const chatsByChannel = await Promise.all(
+                openRows.map(({ channel }) =>
+                    WhatsAppService.fetchChats(channel.instanceName, {
+                        channelId: channel.id,
+                        channelLabel: channel.label,
+                    })
+                )
+            );
+
+            const merged = chatsByChannel.flat().sort((a, b) => getChatTimestampMs(b) - getChatTimestampMs(a));
+            setChats(merged);
         } catch (e) {
             console.error("AURA ChatList Error:", e);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
+    };
+
+    const handleSelectChat = (chat) => {
+        if (chat?.channelId) {
+            switchWhatsAppChannel(chat.channelId);
+        }
+        setActiveChat(chat);
     };
 
     const filtered = (Array.isArray(chats) ? chats : [])
@@ -29,6 +68,8 @@ const ChatList = ({ onOpenMenu }) => {
             const jid = getChatJid(c);
             // Exclude archived chats from main list
             if (archivedChatIds.includes(jid)) return false;
+
+            if (channelFilter !== 'all' && c?.channelId !== channelFilter) return false;
 
             const jidStr = String(jid || "").toLowerCase();
             const name = String(getChatDisplayName(c) || "").toLowerCase();
@@ -67,14 +108,57 @@ const ChatList = ({ onOpenMenu }) => {
                 />
             </div>
 
+            <div style={{ display: 'flex', gap: 8, padding: '0 16px 10px', overflowX: 'auto' }}>
+                <button
+                    type="button"
+                    onClick={() => setChannelFilter('all')}
+                    style={{
+                        height: 30,
+                        borderRadius: 999,
+                        border: channelFilter === 'all' ? '1px solid #c5a059' : '1px solid #d9dbe1',
+                        background: channelFilter === 'all' ? '#f8f1e4' : '#fff',
+                        color: channelFilter === 'all' ? '#8a6d3a' : '#5d6169',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: '0 12px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    Todas
+                </button>
+
+                {(Array.isArray(whatsappChannels) ? whatsappChannels : []).map((channel) => (
+                    <button
+                        key={channel.id}
+                        type="button"
+                        onClick={() => setChannelFilter(channel.id)}
+                        style={{
+                            height: 30,
+                            borderRadius: 999,
+                            border: channelFilter === channel.id ? '1px solid #c5a059' : '1px solid #d9dbe1',
+                            background: channelFilter === channel.id ? '#f8f1e4' : '#fff',
+                            color: channelFilter === channel.id ? '#8a6d3a' : '#5d6169',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '0 12px',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {channel.label}
+                    </button>
+                ))}
+            </div>
+
             <div className="chats scrollable">
                 {filtered.map(chat => {
                     return (
                         <ChatListItem
-                            key={String(getChatJid(chat))}
+                            key={String(chat?.chatKey || getChatJid(chat))}
                             chat={chat}
-                            activeChatId={activeChat?.id}
-                            onSelect={setActiveChat}
+                            activeChatId={activeChat?.chatKey || activeChat?.id}
+                            onSelect={handleSelectChat}
                             includeAudioTranscription
                         />
                     );

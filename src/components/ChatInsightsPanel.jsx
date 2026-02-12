@@ -1,7 +1,13 @@
 import React from 'react';
 import { BarChart3, Target, Check } from 'lucide-react';
+import { useStore } from '../store/useStore';
 
 const ChatInsightsPanel = ({ analysisData, suggestion, handleAnalyze, useSuggestion }) => {
+    const aiRemaining = useStore((state) => state.getAiRemaining());
+    const aiQuota = useStore((state) => state.getAiQuota());
+    const aiUsed = useStore((state) => state.getAiUsage());
+    const isAiLocked = aiRemaining <= 0;
+
     return (
         <div className="analysis-column">
             <div className="card glass-panel v3-analysis">
@@ -25,9 +31,12 @@ const ChatInsightsPanel = ({ analysisData, suggestion, handleAnalyze, useSuggest
                     </div>
                 </div>
 
-                <button className="btn-primary v3-btn" onClick={handleAnalyze}>
+                <button className="btn-primary v3-btn" onClick={handleAnalyze} disabled={isAiLocked} title={isAiLocked ? 'Limite de IA atingido' : 'Analisar com IA'}>
                     Analisar Histórico
                 </button>
+                <div style={{ fontSize: '11px', color: '#86868b', marginTop: '8px' }}>
+                    IA usada: {aiUsed}/{aiQuota}
+                </div>
             </div>
 
             <div className="card glass-panel suggestion v3-suggestion">

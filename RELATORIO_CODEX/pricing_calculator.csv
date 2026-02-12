@@ -1,0 +1,4 @@
+Plano,Preco_Mensal,Limite_Mensagens_IA,Custo_IA_por_Mensagem,Custo_Evolution,Custo_Infra,Custo_Suporte,Taxas_e_Impostos,Custo_Total,Lucro_Bruto,Margin_Bruta_%
+Lite,79,500,0.03,12,8,6,4,=D2*C2+E2+F2+G2+H2,=B2-I2,=(J2/B2)
+Pro,179,2000,0.03,12,10,10,9,=D3*C3+E3+F3+G3+H3,=B3-I3,=(J3/B3)
+Scale,349,6000,0.03,36,18,18,17,=D4*C4+E4+F4+G4+H4,=B4-I4,=(J4/B4)

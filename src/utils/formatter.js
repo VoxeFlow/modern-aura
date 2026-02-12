@@ -43,7 +43,6 @@ export const formatJid = (jid) => {
 
 export const formatMessageTime = (timestamp) => {
     if (!timestamp) return '';
-    const date = new Date(timestamp * 1000); // WhatsApp uses seconds usually, but let's check input
     // If timestamp is huge (ms), don't multiply. If small (seconds), multiply.
     // Standard JS Date takes ms.
     const time = (String(timestamp).length > 11) ? new Date(timestamp) : new Date(timestamp * 1000);

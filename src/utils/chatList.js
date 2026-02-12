@@ -1,7 +1,8 @@
 import { formatJid } from './formatter';
+import { unwrapMessageContent } from './messageContent';
 
 export function getChatJid(chat) {
-    return chat?.remoteJid || chat?.jid || chat?.id;
+    return chat?.chatJid || chat?.sendTargetJid || chat?.remoteJid || chat?.jid || chat?.id;
 }
 
 export function getChatTimestampMs(chat) {
@@ -24,7 +25,7 @@ export function getChatAvatar(chat) {
 }
 
 export function getChatPreview(chat, { includeAudioTranscription = false } = {}) {
-    const msg = chat?.lastMessage?.message || chat?.message || {};
+    const msg = unwrapMessageContent(chat?.lastMessage?.message || chat?.message || {});
 
     const content =
         msg.conversation ||

@@ -1,3 +1,5 @@
+import { unwrapMessageContent } from './messageContent';
+
 export function getJidDigits(jid) {
     return String(jid || '').split('@')[0].replace(/\D/g, '');
 }
@@ -10,12 +12,14 @@ export function getMessageIdentity(record) {
     const fromMe = record?.key?.fromMe || record?.fromMe ? '1' : '0';
     const remote = getJidDigits(record?.key?.remoteJid || record?.remoteJid || '');
     const participant = getJidDigits(record?.key?.participant || record?.participant || '');
+    const msg = unwrapMessageContent(record?.message || {});
     const text =
-        record?.message?.conversation ||
-        record?.message?.extendedTextMessage?.text ||
-        record?.message?.imageMessage?.caption ||
-        record?.message?.videoMessage?.caption ||
-        record?.message?.audioMessage?.caption ||
+        msg.conversation ||
+        msg.extendedTextMessage?.text ||
+        msg.imageMessage?.caption ||
+        msg.videoMessage?.caption ||
+        msg.audioMessage?.caption ||
+        msg.documentMessage?.fileName ||
         '';
 
     return `fp:${fromMe}:${ts}:${remote}:${participant}:${text}`;

@@ -6,7 +6,11 @@ import TagSelectorDialogContent from '../components/TagSelectorDialogContent';
 
 export function useChatActions({ activeChat, openConfirm, setActiveChat }) {
     const handleTag = useCallback(() => {
-        const { setTag, tags } = useStore.getState();
+        const { setTag, tags, hasFeature } = useStore.getState();
+        if (!hasFeature('crm_basic')) {
+            openConfirm('Recurso do plano', 'A gestão de tags e CRM está disponível nos planos Pro e Scale.');
+            return;
+        }
 
         openConfirm(
             'Etiquetar Conversa',

@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CRMCard from './CRMCard';
+import { useStore } from '../store/useStore';
 
-const CRMColumn = ({ tag, chats }) => {
+const CRMColumn = ({ tag, chats, onDropChat }) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+    const updateCRMColumn = useStore((state) => state.updateCRMColumn);
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const chatId = e.dataTransfer.getData('text/plain');
+        setIsDragOver(false);
+        if (chatId && onDropChat) onDropChat(chatId);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragOver(false);
+    };
+
     return (
         <div className="crm-column" style={{
             background: 'white',
@@ -12,8 +32,15 @@ const CRMColumn = ({ tag, chats }) => {
             boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '15px'
-        }}>
+            gap: '15px',
+            maxHeight: '100%',
+            minHeight: 0
+        }}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            data-drop-active={isDragOver ? 'true' : 'false'}
+        >
             <div className="column-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '800', color: '#1d1d1f', display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tag.color }}></div>
@@ -22,9 +49,7 @@ const CRMColumn = ({ tag, chats }) => {
                         defaultValue={tag.name}
                         onBlur={(e) => {
                             if (e.target.value !== tag.name) {
-                                // Assuming we'll pass an update function or use store directly
-                                const { useStore } = require('../store/useStore');
-                                useStore.getState().updateCRMColumn(tag.id, { name: e.target.value });
+                                updateCRMColumn(tag.id, { name: e.target.value });
                             }
                         }}
                         onKeyDown={(e) => {
@@ -66,12 +91,13 @@ const CRMColumn = ({ tag, chats }) => {
                     </div>
                 ) : (
                     chats.map(chat => {
-                        const jid = chat.remoteJid || chat.jid || chat.id;
+                        const jid = chat.id || chat.remoteJid || chat.jid;
                         return (
                             <CRMCard
                                 key={jid}
                                 chat={chat}
                                 tag={tag}
+                                draggable
                             />
                         );
                     })

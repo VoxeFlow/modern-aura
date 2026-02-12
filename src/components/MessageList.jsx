@@ -1,6 +1,7 @@
 import React from 'react';
 import AudioPlayer from './AudioPlayer';
 import ImageViewer from './ImageViewer';
+import DocumentViewer from './DocumentViewer';
 import { resolveRenderedMessage } from '../utils/chatArea';
 import { formatMessageTime, getMessageDateGroup } from '../utils/formatter';
 
@@ -8,7 +9,6 @@ const MessageList = ({ messages, loading, messagesEndRef }) => {
     // Determine sort order. Assuming 'messages' prop is Newest-First (standard for chat apps storage),
     // we reverse it for display (Oldest at top, Newest at bottom).
     const sortedMessages = Array.isArray(messages) ? [...messages].reverse() : [];
-    let lastDateGroup = null;
 
     return (
         <div className="thread scrollable">
@@ -20,7 +20,7 @@ const MessageList = ({ messages, loading, messagesEndRef }) => {
                 if (parsed.mediaType === 'audio') {
                     mediaElement = (
                         <div className="audio-message">
-                            <AudioPlayer messageKey={message.key} />
+                            <AudioPlayer messageKey={message.key} mimeType={parsed.mimeType} />
                             {parsed.transcription && (
                                 <p className="transcription" style={{ marginTop: '8px', fontSize: '12px', opacity: 0.8 }}>
                                     🎵 {parsed.transcription}
@@ -29,7 +29,15 @@ const MessageList = ({ messages, loading, messagesEndRef }) => {
                         </div>
                     );
                 } else if (parsed.mediaType === 'image') {
-                    mediaElement = <ImageViewer messageKey={message.key} caption={parsed.imageCaption} />;
+                    mediaElement = <ImageViewer messageKey={message.key} caption={parsed.imageCaption} mimeType={parsed.mimeType} />;
+                } else if (parsed.mediaType === 'document') {
+                    mediaElement = (
+                        <DocumentViewer
+                            messageKey={message.key}
+                            fileName={parsed.fileName}
+                            mimeType={parsed.mimeType}
+                        />
+                    );
                 }
 
                 if (!displayContent && !mediaElement && !message.key) return null;
@@ -38,8 +46,9 @@ const MessageList = ({ messages, loading, messagesEndRef }) => {
 
                 // Date Grouping Logic
                 const messageDate = getMessageDateGroup(message.messageTimestamp);
-                const showDateSeparator = messageDate !== lastDateGroup;
-                lastDateGroup = messageDate;
+                const previousMessage = index > 0 ? sortedMessages[index - 1] : null;
+                const previousDate = previousMessage ? getMessageDateGroup(previousMessage.messageTimestamp) : null;
+                const showDateSeparator = messageDate !== previousDate;
 
                 // Time Formatting
                 const formattedTime = formatMessageTime(message.messageTimestamp);

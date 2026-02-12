@@ -8,14 +8,15 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
     const isFirstLoadRef = useRef(true);
 
     const loadMessages = useCallback(async () => {
-        const jid = activeChat?.id;
+        const jid = activeChat?.chatJid || activeChat?.sendTargetJid || activeChat?.remoteJid || activeChat?.jid || activeChat?.id;
         if (!jid) return;
 
         setLoading(true);
         try {
             const linkedLid = activeChat.linkedLid || null;
-            const data = await WhatsAppService.fetchMessages(jid, linkedLid, activeChat);
-            if (activeJidRef.current === jid) {
+            const sourceInstance = activeChat.sourceInstanceName || null;
+            const data = await WhatsAppService.fetchMessages(jid, linkedLid, activeChat, sourceInstance);
+            if (activeJidRef.current === (activeChat?.id || jid)) {
                 setMessages(jid, data || []);
             }
         } catch (error) {
@@ -33,7 +34,7 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
     }, [messages]);
 
     useEffect(() => {
-        const jid = activeChat?.id;
+        const jid = activeChat?.id || activeChat?.chatJid;
         activeJidRef.current = jid;
         isFirstLoadRef.current = true;
         clearMessages();
@@ -43,7 +44,7 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
         loadMessages();
         const interval = setInterval(loadMessages, 5000);
         return () => clearInterval(interval);
-    }, [activeChat?.id, clearMessages, loadMessages]);
+    }, [activeChat?.id, activeChat?.chatJid, clearMessages, loadMessages]);
 
     return {
         loading,

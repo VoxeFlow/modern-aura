@@ -23,6 +23,16 @@ const jidStyles = {
     textAlign: 'left',
 };
 
+const channelTagStyles = {
+    fontSize: '10px',
+    fontWeight: 600,
+    color: '#8a6d3a',
+    background: '#f6efdf',
+    border: '1px solid #ead9b4',
+    borderRadius: '999px',
+    padding: '2px 8px',
+};
+
 const avatarStyles = {
     width: '100%',
     height: '100%',
@@ -32,22 +42,27 @@ const avatarStyles = {
 
 const ChatListItem = ({ chat, activeChatId, onSelect, includeAudioTranscription = false }) => {
     const jid = getChatJid(chat);
+    const contactJid = chat?.sendTargetJid || chat?.remoteJid || chat?.jid || jid;
     const name = getChatDisplayName(chat);
     const photo = getChatAvatar(chat);
-    const hasName = name && name !== String(jid).split('@')[0];
+    const hasName = name && name !== String(contactJid).split('@')[0];
     const preview = getChatPreview(chat, { includeAudioTranscription });
+    const channelLabel = chat?.channelLabel || chat?.sourceInstanceName;
+    const chatKey = chat?.chatKey || jid;
 
     return (
         <div
-            key={String(jid)}
-            className={`chat-item ${activeChatId === jid ? 'active' : ''}`}
+            key={String(chatKey)}
+            className={`chat-item ${activeChatId === chatKey ? 'active' : ''}`}
             onClick={() =>
                 onSelect({
                     ...chat,
-                    id: jid,
-                    name: name || formatJid(jid),
-                    jid: chat?.jid || jid,
-                    remoteJid: chat?.remoteJid || jid,
+                    id: chatKey,
+                    chatKey,
+                    chatJid: contactJid,
+                    name: name || formatJid(contactJid),
+                    jid: chat?.jid || contactJid,
+                    remoteJid: chat?.remoteJid || contactJid,
                     remoteJidAlt: chat?.remoteJidAlt || chat?.lastMessage?.key?.remoteJidAlt || null,
                     linkedLid: chat?.linkedLid || null,
                     phoneNumber: chat?.phoneNumber || null,
@@ -64,9 +79,10 @@ const ChatListItem = ({ chat, activeChatId, onSelect, includeAudioTranscription 
             </div>
             <div className="info">
                 <div className="chat-main-header" style={rowStyles}>
-                    <h4 style={titleStyles}>{hasName ? name : formatJid(jid)}</h4>
-                    {hasName && !jid.includes('@lid') && (
-                        <span style={jidStyles}>{formatJid(jid)}</span>
+                    <h4 style={titleStyles}>{hasName ? name : formatJid(contactJid)}</h4>
+                    {channelLabel && <span style={channelTagStyles}>{channelLabel}</span>}
+                    {hasName && !contactJid.includes('@lid') && (
+                        <span style={jidStyles}>{formatJid(contactJid)}</span>
                     )}
                 </div>
                 <p className="chat-preview">{preview}</p>

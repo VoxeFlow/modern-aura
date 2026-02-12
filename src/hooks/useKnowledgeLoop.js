@@ -9,8 +9,7 @@ export function useKnowledgeLoop() {
         pendingGaps,
         knowledgeBase,
         setKnowledgeBase,
-        setConfig,
-        chats
+        setConfig
     } = useStore();
 
     useEffect(() => {
