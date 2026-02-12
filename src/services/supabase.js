@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const isSupabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!isSupabaseEnabled) {
     console.warn('AURA: Supabase credentials missing in environment variables.');
 }
 

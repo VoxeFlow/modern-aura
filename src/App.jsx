@@ -11,6 +11,7 @@ import LoginScreen from './components/LoginScreen';
 import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
+import { isSupabaseEnabled, supabase } from './services/supabase';
 
 const App = () => {
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
@@ -36,15 +37,15 @@ const App = () => {
 
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
-  // AUTH: Check localStorage for authentication token
+  // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
-    const checkAuth = () => {
+    let mounted = true;
+
+    const checkLegacyToken = () => {
       const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setIsAuthenticated(false);
-        return;
-      }
+      if (!token) return false;
 
       try {
         const decoded = atob(token);
@@ -52,22 +53,52 @@ const App = () => {
         const validType = parsed?.type === 'authenticated';
         const notExpired = typeof parsed?.expiresAt === 'number' && parsed.expiresAt > Date.now();
 
-        if (validType && notExpired) {
-          setIsAuthenticated(true);
-        } else {
-          localStorage.removeItem('auth_token');
-          setIsAuthenticated(false);
-        }
+        if (validType && notExpired) return true;
+        localStorage.removeItem('auth_token');
+        return false;
       } catch {
         localStorage.removeItem('auth_token');
-        setIsAuthenticated(false);
+        return false;
+      }
+    };
+
+    const checkAuth = async () => {
+      let authed = false;
+      if (isSupabaseEnabled) {
+        const { data } = await supabase.auth.getSession();
+        authed = Boolean(data?.session);
+      }
+      if (!authed) authed = checkLegacyToken();
+      if (mounted) {
+        setIsAuthenticated(authed);
+        setAuthReady(true);
       }
     };
 
     checkAuth();
-    // Also listen for storage changes (multi-tab logout support)
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
+
+    const authListener = isSupabaseEnabled
+      ? supabase.auth.onAuthStateChange((_event, session) => {
+        if (!mounted) return;
+        if (session) {
+          setIsAuthenticated(true);
+          setAuthReady(true);
+        } else {
+          const legacyAuthed = checkLegacyToken();
+          setIsAuthenticated(legacyAuthed);
+          setAuthReady(true);
+        }
+      })
+      : null;
+
+    const onStorage = () => checkAuth();
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('storage', onStorage);
+      authListener?.data?.subscription?.unsubscribe?.();
+    };
   }, []);
 
   // LEAD PROCESSING: Check for pending leads from Landing Page
@@ -189,12 +220,20 @@ const App = () => {
   }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus]);
 
   // AUTH: Handle logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isSupabaseEnabled) {
+      await supabase.auth.signOut();
+    }
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('aura_master_mode');
     setIsAuthenticated(false);
   };
 
   // AUTH: /app should always show login when unauthenticated
+  if (!authReady) {
+    return null;
+  }
+
   if (!isAuthenticated) {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }
