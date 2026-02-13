@@ -67,13 +67,20 @@ const ConnectModal = ({ isOpen, onClose }) => {
     };
 
     const checkStatus = useCallback(async () => {
-        const currentState = await WhatsAppService.checkConnection();
+        const instance = String(activeChannel?.instanceName || '').trim();
+        if (!instance) {
+            setStatus('disconnected');
+            if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'disconnected');
+            setQrCode(null);
+            return;
+        }
+        const currentState = await WhatsAppService.checkConnection(instance);
         setStatus(currentState);
         if (activeChannel?.id) {
             setWhatsAppChannelStatus(activeChannel.id, currentState);
         }
         if (currentState === 'open') setQrCode(null);
-    }, [activeChannel?.id, setWhatsAppChannelStatus]);
+    }, [activeChannel?.id, activeChannel?.instanceName, setWhatsAppChannelStatus]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -138,7 +145,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         let intervalId;
 
         const pollQr = async () => {
-            const data = await WhatsAppService.connectInstance();
+            const data = await WhatsAppService.connectInstance(activeChannel?.instanceName);
             if (cancelled) return;
             const nextQr = readQrFromPayload(data);
             if (nextQr) setQrCode(nextQr);
@@ -203,7 +210,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         setStatus('connecting');
 
         try {
-            const data = await WhatsAppService.connectInstance();
+            const data = await WhatsAppService.connectInstance(activeChannel?.instanceName);
             const nextQr = readQrFromPayload(data);
             if (nextQr) {
                 setQrCode(nextQr);
@@ -243,7 +250,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
         setLoading(true);
         try {
-            await WhatsAppService.logoutInstance();
+            await WhatsAppService.logoutInstance(activeChannel?.instanceName);
             if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'disconnected');
             if (activeChannel) {
                 await syncChannelRow(activeChannel, { status: 'disconnected' });

@@ -150,21 +150,22 @@ class WhatsAppService {
         });
     }
 
-    async connectInstance() {
+    async connectInstance(instanceOverride = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName) return null;
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance) return null;
 
         // v2 standard: GET to connect instance
         // If 404, it means instance doesn't exist. We must CREATE it.
         try {
-            const response = await this.request(`/instance/connect/${instanceName}`);
+            const response = await this.request(`/instance/connect/${targetInstance}`);
 
             // Check for specific 404 or error in response payload if request() swallowed it
             if (!response || (response.error && response.status === 404) || (response.response && response.response.message && response.response.message.includes('does not exist'))) {
-                console.warn(`AURA: Instance ${instanceName} not found. Creating...`);
-                await this.createInstance(instanceName);
+                console.warn(`AURA: Instance ${targetInstance} not found. Creating...`);
+                await this.createInstance(targetInstance);
                 // Try connecting again after creation
-                return await this.request(`/instance/connect/${instanceName}`);
+                return await this.request(`/instance/connect/${targetInstance}`);
             }
 
             return response;
@@ -174,12 +175,13 @@ class WhatsAppService {
         }
     }
 
-    async logoutInstance() {
+    async logoutInstance(instanceOverride = null) {
         const { instanceName } = useStore.getState();
-        if (!instanceName) return null;
+        const targetInstance = instanceOverride || instanceName;
+        if (!targetInstance) return null;
         // CRITICAL: Delete the instance to clear all data (chats, messages) from the backend
         // This ensures that if the user connects a different number, no old data remains.
-        return await this.request(`/instance/delete/${instanceName}`, 'DELETE');
+        return await this.request(`/instance/delete/${targetInstance}`, 'DELETE');
     }
 
     standardizeJid(jid) {
