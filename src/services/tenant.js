@@ -55,7 +55,7 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
 
     const { data: memberships, error } = await supabase
         .from('tenant_memberships')
-        .select('tenant_id, role, status, tenants:tenant_id(id, name, slug, plan)')
+        .select('tenant_id, role, status, tenants:tenant_id(id, name, slug, plan), tenant_settings:tenant_id(onboarding_completed,api_url,api_key,manager_phone,briefing)')
         .eq('user_id', user.id)
         .eq('status', 'active');
 
@@ -67,13 +67,27 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
         rows = [{ tenant_id: tenant.id, role: 'owner', status: 'active', tenants: tenant }];
     }
 
+    const hasTenantConfig = (settings) => {
+        const cfg = settings || {};
+        return (
+            Boolean(cfg.onboarding_completed) ||
+            Boolean(String(cfg.api_url || '').trim()) ||
+            Boolean(String(cfg.api_key || '').trim()) ||
+            Boolean(String(cfg.manager_phone || '').trim()) ||
+            Boolean(String(cfg.briefing || '').trim())
+        );
+    };
+
+    const cleanPlan = (value) => String(value || '').trim().toLowerCase();
+
     const tenants = rows
         .map((row) => ({
             id: row?.tenants?.id || row?.tenant_id,
             name: row?.tenants?.name || 'Workspace',
             slug: row?.tenants?.slug || '',
-            plan: row?.tenants?.plan || 'pro',
+            plan: cleanPlan(row?.tenants?.plan || 'pro'),
             role: row?.role || 'agent',
+            hasConfig: hasTenantConfig(row?.tenant_settings),
         }))
         .filter((row) => row.id);
     const roleRank = { owner: 0, admin: 1, agent: 2, viewer: 3 };
@@ -83,8 +97,10 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
         const roleB = roleRank[b.role] ?? 99;
         if (roleA !== roleB) return roleA - roleB;
 
-        const planA = planRank[String(a.plan || '').toLowerCase()] ?? 99;
-        const planB = planRank[String(b.plan || '').toLowerCase()] ?? 99;
+        if (a.hasConfig !== b.hasConfig) return a.hasConfig ? -1 : 1;
+
+        const planA = planRank[cleanPlan(a.plan)] ?? 99;
+        const planB = planRank[cleanPlan(b.plan)] ?? 99;
         if (planA !== planB) return planA - planB;
 
         return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
