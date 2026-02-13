@@ -47,6 +47,8 @@ const App = () => {
     setChatTags,
     tenantId,
     tenantName,
+    briefing,
+    knowledgeBase,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
@@ -246,6 +248,21 @@ const App = () => {
       switchView('dashboard');
     }
   }, [currentView, hasFeature, switchView]);
+
+  // ONBOARDING SAFETY: if tenant is clean and onboarding not marked, force welcome modal.
+  useEffect(() => {
+    if (!isAuthenticated || !tenantId) return;
+    const onboardingKey = `aura_onboarding_done_${tenantId}`;
+    const done = localStorage.getItem(onboardingKey) === '1';
+    const hasBriefing = Boolean(String(briefing || '').trim());
+    const hasKnowledge = Array.isArray(knowledgeBase) && knowledgeBase.length > 0;
+    if (!done && !hasBriefing && !hasKnowledge) {
+      const timer = window.setTimeout(() => {
+        setShowWelcome(true);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [isAuthenticated, tenantId, briefing, knowledgeBase]);
 
   // CHANNEL SYNC: keep instanceName aligned with selected channel after hydration/login.
   useEffect(() => {
