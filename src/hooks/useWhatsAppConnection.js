@@ -153,8 +153,10 @@ export function useWhatsAppConnection({
         }
 
         useStore.getState().logout();
-        localStorage.clear();
-        sessionStorage.clear();
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('aura-storage');
+        localStorage.removeItem('aura_tenant_id');
+        localStorage.removeItem('aura_master_mode');
         setTimeout(() => {
             window.location.reload();
         }, 500);
