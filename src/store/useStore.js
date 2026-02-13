@@ -41,9 +41,19 @@ function getMonthKey(date = new Date()) {
 function slugifyInstanceName(value = '') {
     return String(value || '')
         .trim()
+        .toLowerCase()
         .replace(/[^A-Za-z0-9_-]+/g, '-')
         .replace(/^-+|-+$/g, '')
         .slice(0, 40);
+}
+
+function scopeInstanceName(tenantSlug = '', value = '') {
+    const base = slugifyInstanceName(value);
+    if (!base) return '';
+    const tenantPrefix = slugifyInstanceName(tenantSlug || '');
+    if (!tenantPrefix) return base;
+    if (base.startsWith(`${tenantPrefix}--`)) return base;
+    return `${tenantPrefix}--${base}`.slice(0, 80);
 }
 
 const DEFAULT_TAGS = [
@@ -159,7 +169,7 @@ export const useStore = create(
             setConfig: (config) => set((state) => {
                 const next = { ...state, ...config };
                 if (typeof config?.instanceName === 'string') {
-                    const normalizedInstanceName = slugifyInstanceName(config.instanceName);
+                    const normalizedInstanceName = scopeInstanceName(state.tenantSlug, config.instanceName);
                     next.instanceName = normalizedInstanceName;
                     const channels = Array.isArray(state.whatsappChannels) ? [...state.whatsappChannels] : [];
                     const activeIdx = channels.findIndex((item) => item.id === state.activeWhatsAppChannelId);
@@ -276,18 +286,19 @@ export const useStore = create(
                 }
 
                 const cleanInstance = slugifyInstanceName(instanceName || label);
-                if (!cleanInstance) {
+                const scopedInstance = scopeInstanceName(state.tenantSlug, cleanInstance);
+                if (!scopedInstance) {
                     return { ok: false, reason: 'invalid_instance' };
                 }
 
-                if (channels.some((item) => String(item.instanceName || '').toLowerCase() === cleanInstance.toLowerCase())) {
+                if (channels.some((item) => String(item.instanceName || '').toLowerCase() === scopedInstance.toLowerCase())) {
                     return { ok: false, reason: 'duplicate_instance' };
                 }
 
                 const newChannel = {
                     id: `channel-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                     label: String(label || cleanInstance).trim() || cleanInstance,
-                    instanceName: cleanInstance,
+                    instanceName: scopedInstance,
                 };
 
                 set({
@@ -307,7 +318,7 @@ export const useStore = create(
                 const current = channels[idx];
                 const nextLabel = String(label ?? current.label).trim();
                 const nextInstanceRaw = String(instanceName ?? current.instanceName).trim();
-                const nextInstance = slugifyInstanceName(nextInstanceRaw);
+                const nextInstance = scopeInstanceName(state.tenantSlug, nextInstanceRaw);
 
                 if (!nextInstance) return { ok: false, reason: 'invalid_instance' };
                 const duplicate = channels.some((item, itemIdx) => itemIdx !== idx && String(item.instanceName || '').toLowerCase() === nextInstance.toLowerCase());
