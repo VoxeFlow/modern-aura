@@ -90,6 +90,7 @@ export const useStore = create(
             tenantId: null,
             tenantSlug: '',
             tenantName: '',
+            tenantPlan: 'pro',
             availableTenants: [],
             userId: null,
             userEmail: '',
@@ -116,13 +117,15 @@ export const useStore = create(
                 userId,
                 userEmail: String(userEmail || '').trim().toLowerCase(),
             }),
-            applyTenantContext: ({ tenantId = null, tenantSlug = '', tenantName = '', tenants = [] } = {}) => set((state) => {
+            applyTenantContext: ({ tenantId = null, tenantSlug = '', tenantName = '', tenantPlan = 'pro', tenants = [] } = {}) => set((state) => {
                 const nextTenantId = tenantId || null;
                 const hasTenantChanged = Boolean(state.tenantId && nextTenantId && state.tenantId !== nextTenantId);
                 const base = {
                     tenantId: nextTenantId,
                     tenantSlug: tenantSlug || '',
                     tenantName: tenantName || '',
+                    tenantPlan: normalizePlan(tenantPlan || 'pro'),
+                    subscriptionPlan: normalizePlan(tenantPlan || state.subscriptionPlan || 'pro'),
                     availableTenants: Array.isArray(tenants) ? tenants : [],
                 };
                 if (!hasTenantChanged) return base;
@@ -580,6 +583,7 @@ export const useStore = create(
                     tenantId: null,
                     tenantSlug: '',
                     tenantName: '',
+                    tenantPlan: 'pro',
                     availableTenants: [],
                     userId: null,
                     userEmail: '',
@@ -780,6 +784,7 @@ export const useStore = create(
                 tenantId: state.tenantId,
                 tenantSlug: state.tenantSlug,
                 tenantName: state.tenantName,
+                tenantPlan: state.tenantPlan,
                 availableTenants: state.availableTenants,
                 userId: state.userId,
                 userEmail: state.userEmail,

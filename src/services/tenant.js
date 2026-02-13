@@ -21,8 +21,9 @@ async function createTenantForUser(user) {
             name: displayName,
             slug,
             owner_user_id: user.id,
+            plan: 'pro',
         })
-        .select('id, name, slug')
+        .select('id, name, slug, plan')
         .single();
 
     if (tenantError) throw tenantError;
@@ -47,13 +48,14 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
             tenantId: 'legacy-local',
             tenantName: 'Workspace Local',
             tenantSlug: 'legacy-local',
+            tenantPlan: 'pro',
             tenants: [{ id: 'legacy-local', name: 'Workspace Local', slug: 'legacy-local', role: 'owner' }],
         };
     }
 
     const { data: memberships, error } = await supabase
         .from('tenant_memberships')
-        .select('tenant_id, role, status, tenants:tenant_id(id, name, slug)')
+        .select('tenant_id, role, status, tenants:tenant_id(id, name, slug, plan)')
         .eq('user_id', user.id)
         .eq('status', 'active');
 
@@ -70,6 +72,7 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
             id: row?.tenants?.id || row?.tenant_id,
             name: row?.tenants?.name || 'Workspace',
             slug: row?.tenants?.slug || '',
+            plan: row?.tenants?.plan || 'pro',
             role: row?.role || 'agent',
         }))
         .filter((row) => row.id);
@@ -79,7 +82,7 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
         tenantId: selected?.id || null,
         tenantName: selected?.name || '',
         tenantSlug: selected?.slug || '',
+        tenantPlan: selected?.plan || 'pro',
         tenants,
     };
 }
-

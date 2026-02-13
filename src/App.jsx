@@ -158,6 +158,7 @@ const App = () => {
             tenantId: 'legacy-local',
             tenantName: 'Workspace Local',
             tenantSlug: 'legacy-local',
+            tenantPlan: 'pro',
             tenants: [{ id: 'legacy-local', name: 'Workspace Local', slug: 'legacy-local', role: 'owner' }],
           });
           return;
