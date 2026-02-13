@@ -15,10 +15,12 @@ import { isSupabaseEnabled, supabase } from './services/supabase';
 import { resolveTenantContext } from './services/tenant';
 import {
   ensureDefaultTenantChannel,
+  isScopedInstanceName,
   loadLeadTagMap,
   loadConversationSummaries,
   loadCrmStagesAsTags,
   mapChannelsToStore,
+  normalizeTenantChannelsScope,
   persistChatsSnapshot,
 } from './services/tenantData';
 
@@ -177,9 +179,13 @@ const App = () => {
           localStorage.setItem('aura_tenant_id', tenantCtx.tenantId);
 
           try {
-            const channelRows = await ensureDefaultTenantChannel({
+            let channelRows = await ensureDefaultTenantChannel({
               tenantId: tenantCtx.tenantId,
               userId: user.id,
+            });
+            channelRows = await normalizeTenantChannelsScope({
+              tenantId: tenantCtx.tenantId,
+              tenantSlug: tenantCtx.tenantSlug,
             });
             if (!cancelled) {
               setWhatsAppChannels(mapChannelsToStore(channelRows));
@@ -266,8 +272,13 @@ const App = () => {
     if (!isAuthenticated) return;
 
     const checkConn = async () => {
+      const tenantSlug = useStore.getState().tenantSlug;
       const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
-      const connectedChannels = channels.filter((channel) => String(channel.instanceName || '').trim());
+      const connectedChannels = channels.filter((channel) => {
+        const instance = String(channel.instanceName || '').trim();
+        if (!instance) return false;
+        return isScopedInstanceName(tenantSlug, instance);
+      });
 
       if (connectedChannels.length === 0) {
         setIsConnected(false);
