@@ -76,13 +76,26 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
             role: row?.role || 'agent',
         }))
         .filter((row) => row.id);
+    const roleRank = { owner: 0, admin: 1, agent: 2, viewer: 3 };
+    const planRank = { scale: 0, pro: 1, lite: 2 };
+    const orderedTenants = [...tenants].sort((a, b) => {
+        const roleA = roleRank[a.role] ?? 99;
+        const roleB = roleRank[b.role] ?? 99;
+        if (roleA !== roleB) return roleA - roleB;
 
-    const selected = tenants.find((row) => row.id === preferredTenantId) || tenants[0];
+        const planA = planRank[String(a.plan || '').toLowerCase()] ?? 99;
+        const planB = planRank[String(b.plan || '').toLowerCase()] ?? 99;
+        if (planA !== planB) return planA - planB;
+
+        return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
+    });
+
+    const selected = orderedTenants.find((row) => row.id === preferredTenantId) || orderedTenants[0];
     return {
         tenantId: selected?.id || null,
         tenantName: selected?.name || '',
         tenantSlug: selected?.slug || '',
         tenantPlan: selected?.plan || 'pro',
-        tenants,
+        tenants: orderedTenants,
     };
 }

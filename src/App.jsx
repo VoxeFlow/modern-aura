@@ -181,8 +181,9 @@ const App = () => {
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user || null;
         if (!user || cancelled) return;
-        const preferredTenantId = localStorage.getItem('aura_tenant_id') || null;
-        const tenantCtx = await resolveTenantContext({ user, preferredTenantId });
+        // Do not trust browser-local preferred tenant for SaaS sessions.
+        // Selection must be deterministic and equal across devices.
+        const tenantCtx = await resolveTenantContext({ user, preferredTenantId: null });
         if (cancelled) return;
         const preBootstrapState = useStore.getState();
 
