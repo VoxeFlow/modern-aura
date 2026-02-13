@@ -17,6 +17,31 @@ function getDigits(value) {
     return String(value || '').replace(/\D/g, '');
 }
 
+function slugify(value = '') {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+export function scopeInstanceNameByTenant(tenantSlug = '', instanceName = '') {
+    const cleanInstance = slugify(instanceName);
+    if (!cleanInstance) return '';
+    const cleanTenant = slugify(tenantSlug);
+    if (!cleanTenant) return cleanInstance;
+    if (cleanInstance.startsWith(`${cleanTenant}--`)) return cleanInstance;
+    return `${cleanTenant}--${cleanInstance}`.slice(0, 80);
+}
+
+export function isScopedInstanceName(tenantSlug = '', instanceName = '') {
+    const cleanTenant = slugify(tenantSlug);
+    const cleanInstance = String(instanceName || '').trim().toLowerCase();
+    if (!cleanInstance) return false;
+    if (!cleanTenant) return true;
+    return cleanInstance.startsWith(`${cleanTenant}--`);
+}
+
 function chatTimestampToIso(chat) {
     const ts = chat?.lastMessage?.messageTimestamp || chat?.messageTimestamp || chat?.conversationTimestamp || 0;
     if (!ts) return new Date().toISOString();
@@ -179,6 +204,26 @@ export async function ensureDefaultTenantChannel({ tenantId, userId = null }) {
         userId,
         isPrimary: true,
     });
+    return loadTenantChannels(tenantId);
+}
+
+export async function normalizeTenantChannelsScope({ tenantId, tenantSlug }) {
+    if (!isSupabaseEnabled || !isUuid(tenantId)) return [];
+    const rows = await loadTenantChannels(tenantId);
+    for (const row of rows) {
+        const current = String(row?.instance_name || '').trim();
+        if (!current) continue;
+        const scoped = scopeInstanceNameByTenant(tenantSlug, current);
+        if (!scoped || scoped === current) continue;
+        const { error } = await supabase
+            .from('tenant_channels')
+            .update({ instance_name: scoped })
+            .eq('tenant_id', tenantId)
+            .eq('id', row.id);
+        if (error) {
+            console.error('AURA normalize channel scope error:', error);
+        }
+    }
     return loadTenantChannels(tenantId);
 }
 

@@ -5,10 +5,10 @@ import WhatsAppService from '../services/whatsapp';
 import { useArchivedChats } from '../hooks/useArchivedChats';
 import { getChatDisplayName, getChatJid, getChatTimestampMs } from '../utils/chatList';
 import ChatListItem from './ChatListItem';
-import { loadConversationSummaries, loadLeadTagMap, persistChatsSnapshot } from '../services/tenantData';
+import { isScopedInstanceName, loadConversationSummaries, loadLeadTagMap, persistChatsSnapshot } from '../services/tenantData';
 
 const ChatList = ({ onOpenMenu }) => {
-    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel, tenantId, setChatTags } = useStore();
+    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel, tenantId, tenantSlug, setChatTags } = useStore();
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [channelFilter, setChannelFilter] = useState('all');
@@ -32,7 +32,11 @@ const ChatList = ({ onOpenMenu }) => {
             }
 
             const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
-            const connectedChannels = channels.filter((channel) => String(channel.instanceName || '').trim());
+            const connectedChannels = channels.filter((channel) => {
+                const instance = String(channel.instanceName || '').trim();
+                if (!instance) return false;
+                return isScopedInstanceName(tenantSlug, instance);
+            });
             if (connectedChannels.length === 0) {
                 if (!tenantId) setChats([]);
                 return;
@@ -48,7 +52,7 @@ const ChatList = ({ onOpenMenu }) => {
 
             const openRows = statusRows.filter((row) => row.connectionState === 'open');
             if (openRows.length === 0) {
-                setChats([]);
+                if (!tenantId) setChats([]);
                 return;
             }
 
