@@ -22,6 +22,7 @@ export default function LoginScreen({ onLogin }) {
         const masterPassword = import.meta.env.VITE_MASTER_PASSWORD;
         const masterEmail = String(import.meta.env.VITE_MASTER_EMAIL || 'drjeffersonreis@gmail.com').toLowerCase();
         const cleanEmail = String(email || '').trim().toLowerCase();
+        const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
         try {
             if (isSupabaseEnabled) {
@@ -44,30 +45,13 @@ export default function LoginScreen({ onLogin }) {
                     onLogin();
                     return;
                 }
-
-                // Fallback legacy master (only if credentials match exactly).
-                const emailOk = cleanEmail === masterEmail;
-                const passOk = masterPassword && password === masterPassword;
-                if (emailOk && passOk) {
-                    const tokenPayload = {
-                        type: 'authenticated',
-                        issuedAt: Date.now(),
-                        expiresAt: Date.now() + AUTH_TTL_MS,
-                        role: 'master',
-                        email: cleanEmail,
-                    };
-                    const token = btoa(JSON.stringify(tokenPayload));
-                    localStorage.setItem('auth_token', token);
-                    localStorage.setItem('aura_master_mode', '1');
-                    if (!localStorage.getItem('aura_subscription_plan')) {
-                        localStorage.setItem('aura_subscription_plan', 'scale');
-                    }
-                    onLogin();
-                    return;
-                }
-
                 setError(signInError?.message || 'Falha no login por email.');
                 setPassword('');
+                return;
+            }
+
+            if (!isLocalhost) {
+                setError('Supabase não configurado no ambiente online. Contate o suporte.');
                 return;
             }
 
@@ -82,17 +66,20 @@ export default function LoginScreen({ onLogin }) {
                 return;
             }
 
-            const tokenPayload = {
-                type: 'authenticated',
-                issuedAt: Date.now(),
-                expiresAt: Date.now() + AUTH_TTL_MS,
-                role: 'user',
-                email: cleanEmail || 'legacy@local',
-            };
-            const token = btoa(JSON.stringify(tokenPayload));
-            localStorage.setItem('auth_token', token);
-            localStorage.removeItem('aura_master_mode');
-            onLogin();
+            if (userPassword && password === userPassword) {
+                const tokenPayload = {
+                    type: 'authenticated',
+                    issuedAt: Date.now(),
+                    expiresAt: Date.now() + AUTH_TTL_MS,
+                    role: 'user',
+                    email: cleanEmail || 'legacy@local',
+                };
+                const token = btoa(JSON.stringify(tokenPayload));
+                localStorage.setItem('auth_token', token);
+                localStorage.removeItem('aura_master_mode');
+                onLogin();
+                return;
+            }
         } finally {
             setIsLoading(false);
         }

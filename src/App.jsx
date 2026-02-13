@@ -70,6 +70,7 @@ const App = () => {
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
     let mounted = true;
+    const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
     const checkLegacyToken = () => {
       const token = localStorage.getItem('auth_token');
@@ -95,8 +96,11 @@ const App = () => {
       if (isSupabaseEnabled) {
         const { data } = await supabase.auth.getSession();
         authed = Boolean(data?.session);
+        if (!isLocalhost) {
+          localStorage.removeItem('auth_token');
+        }
       }
-      if (!authed) authed = checkLegacyToken();
+      if (!authed && !isSupabaseEnabled) authed = checkLegacyToken();
       if (mounted) {
         setIsAuthenticated(authed);
         setAuthReady(true);
@@ -112,7 +116,7 @@ const App = () => {
           setIsAuthenticated(true);
           setAuthReady(true);
         } else {
-          const legacyAuthed = checkLegacyToken();
+          const legacyAuthed = !isSupabaseEnabled ? checkLegacyToken() : false;
           setIsAuthenticated(legacyAuthed);
           setAuthReady(true);
         }
