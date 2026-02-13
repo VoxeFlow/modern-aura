@@ -46,11 +46,13 @@ const App = () => {
     setTags,
     setChatTags,
     tenantId,
+    tenantName,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -220,6 +222,14 @@ const App = () => {
           } catch (error) {
             console.error('AURA crm lead map bootstrap failed', error);
           }
+
+          if (!cancelled) {
+            const onboardingKey = `aura_onboarding_done_${tenantCtx.tenantId}`;
+            const done = localStorage.getItem(onboardingKey) === '1';
+            const hasBriefing = Boolean(String(useStore.getState().briefing || '').trim());
+            const hasKnowledge = Array.isArray(useStore.getState().knowledgeBase) && useStore.getState().knowledgeBase.length > 0;
+            setShowWelcome(!done && !hasBriefing && !hasKnowledge);
+          }
         }
       } catch (error) {
         console.error('AURA: tenant bootstrap failed', error);
@@ -347,10 +357,19 @@ const App = () => {
     if (isSupabaseEnabled) {
       await supabase.auth.signOut();
     }
+    useStore.getState().logout();
     localStorage.removeItem('auth_token');
     localStorage.removeItem('aura_master_mode');
     localStorage.removeItem('aura_tenant_id');
     setIsAuthenticated(false);
+  };
+
+  const dismissWelcome = (openBriefing = false) => {
+    if (tenantId) {
+      localStorage.setItem(`aura_onboarding_done_${tenantId}`, '1');
+    }
+    setShowWelcome(false);
+    if (openBriefing) setIsBriefingOpen(true);
   };
 
   // AUTH: /app should always show login when unauthenticated
@@ -396,6 +415,62 @@ const App = () => {
       <ConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)} />
       <ConnectModal isOpen={isConnectOpen} onClose={() => setIsConnectOpen(false)} />
       <BriefingModal isOpen={isBriefingOpen} onClose={() => setIsBriefingOpen(false)} />
+      {showWelcome && (
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(8px)', background: 'rgba(17,18,20,0.35)', zIndex: 1400 }}>
+          <div
+            className="glass-panel"
+            style={{
+              width: '92%',
+              maxWidth: 560,
+              background: '#fff',
+              border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 20,
+              boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+              padding: 28,
+              display: 'grid',
+              gap: 14,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 28, color: '#1d1d1f' }}>Bem-vindo à AURA</h2>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: '#5D6169' }}>
+              {tenantName ? `${tenantName},` : 'Sua empresa,'} seu ambiente está zerado e pronto para começar.
+              O briefing inicial ativa a estratégia comercial e o tom de comunicação da IA.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => dismissWelcome(false)}
+                style={{
+                  height: 44,
+                  borderRadius: 12,
+                  border: '1px solid #DADCE2',
+                  background: '#fff',
+                  color: '#3B3F46',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Fazer depois
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissWelcome(true)}
+                style={{
+                  height: 44,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: 'var(--accent-primary)',
+                  color: '#111',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                Iniciar briefing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
