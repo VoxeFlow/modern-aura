@@ -809,34 +809,16 @@ export const useStore = create(
         }),
         {
             name: 'aura-storage',
-            // PERSIST chats so they don't disappear on refresh
+            version: 2,
+            migrate: (persistedState) => {
+                const state = (persistedState && typeof persistedState === 'object') ? persistedState : {};
+                return {
+                    currentView: state.currentView || 'dashboard',
+                };
+            },
+            // Keep local persistence minimal to avoid cross-device drift and tenant data bleed.
             partialize: (state) => ({
-                apiUrl: state.apiUrl,
-                instanceName: state.instanceName,
-                briefing: state.briefing,
-                knowledgeBase: state.knowledgeBase,
-                ragSources: state.ragSources,
                 currentView: state.currentView,
-                chats: state.chats,
-                tags: state.tags, // NOW PERSISTED FOR CUSTOMIZATION
-                chatTags: state.chatTags, // Persist tags
-                chatNextSteps: state.chatNextSteps, // Persist AI suggestions
-                managerPhone: state.managerPhone,
-                pendingGaps: state.pendingGaps,
-                learningEvents: state.learningEvents,
-                subscriptionPlan: state.subscriptionPlan,
-                aiUsageByMonth: state.aiUsageByMonth,
-                whatsappChannels: state.whatsappChannels,
-                activeWhatsAppChannelId: state.activeWhatsAppChannelId,
-                whatsappChannelStatus: state.whatsappChannelStatus,
-                teamUsers: state.teamUsers,
-                tenantId: state.tenantId,
-                tenantSlug: state.tenantSlug,
-                tenantName: state.tenantName,
-                tenantPlan: state.tenantPlan,
-                availableTenants: state.availableTenants,
-                userId: state.userId,
-                userEmail: state.userEmail,
             }),
         }
     )
