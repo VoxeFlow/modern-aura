@@ -123,13 +123,51 @@ export const useStore = create(
             pendingGaps: {}, // { gapId: { chatId, question, timestamp } }
             learningEvents: [], // Rolling learning log for accepted messages and edits
 
-            setAuthIdentity: ({ userId = null, userEmail = '' } = {}) => set({
-                userId,
-                userEmail: String(userEmail || '').trim().toLowerCase(),
+            setAuthIdentity: ({ userId = null, userEmail = '' } = {}) => set((state) => {
+                const nextUserId = userId || null;
+                const hasUserChanged = Boolean(state.userId && nextUserId && state.userId !== nextUserId);
+                if (!hasUserChanged) {
+                    return {
+                        userId: nextUserId,
+                        userEmail: String(userEmail || '').trim().toLowerCase(),
+                    };
+                }
+                return {
+                    userId: nextUserId,
+                    userEmail: String(userEmail || '').trim().toLowerCase(),
+                    isConnected: false,
+                    chats: [],
+                    activeChat: null,
+                    messages: [],
+                    lastFetchedJid: null,
+                    pendingOutgoing: {},
+                    tags: DEFAULT_TAGS,
+                    chatTags: {},
+                    chatNextSteps: {},
+                    managerPhone: '',
+                    pendingGaps: {},
+                    learningEvents: [],
+                    briefing: '',
+                    knowledgeBase: [],
+                    ragSources: [],
+                    currentView: 'dashboard',
+                    whatsappChannels: DEFAULT_CHANNELS,
+                    activeWhatsAppChannelId: 'channel-default',
+                    whatsappChannelStatus: {},
+                    teamUsers: DEFAULT_TEAM_USERS,
+                    apiKey: '',
+                    tenantId: null,
+                    tenantSlug: '',
+                    tenantName: '',
+                    tenantPlan: 'pro',
+                    availableTenants: [],
+                    subscriptionPlan: normalizePlan(import.meta.env.VITE_DEFAULT_PLAN || 'pro'),
+                    aiUsageByMonth: {},
+                };
             }),
             applyTenantContext: ({ tenantId = null, tenantSlug = '', tenantName = '', tenantPlan = 'pro', tenants = [] } = {}) => set((state) => {
                 const nextTenantId = tenantId || null;
-                const hasTenantChanged = Boolean(state.tenantId && nextTenantId && state.tenantId !== nextTenantId);
+                const hasTenantChanged = state.tenantId !== nextTenantId;
                 const base = {
                     tenantId: nextTenantId,
                     tenantSlug: tenantSlug || '',
