@@ -224,6 +224,12 @@ const ConnectModal = ({ isOpen, onClose }) => {
         setStatus('connecting');
 
         try {
+            const liveState = await WhatsAppService.checkConnection(activeChannel?.instanceName);
+            if (liveState === 'open') {
+                // Force a fresh QR flow when the previous session is still linked.
+                await WhatsAppService.logoutInstance(activeChannel?.instanceName);
+                await new Promise((resolve) => setTimeout(resolve, 700));
+            }
             const data = await WhatsAppService.connectInstance(activeChannel?.instanceName);
             const nextQr = readQrFromPayload(data);
             if (nextQr) {

@@ -292,13 +292,16 @@ const App = () => {
                 label: String(channel?.label || 'Canal').trim() || 'Canal',
                 instanceName: String(channel?.instanceName || '').trim(),
               }));
+            if (localSeedChannels.length > 0) {
+              const remoteInstanceSet = new Set(
+                (channelRows || [])
+                  .map((row) => String(row?.instance_name || '').trim().toLowerCase())
+                  .filter(Boolean)
+              );
 
-            const remoteHasConnectedLikeChannel = (channelRows || []).some((row) =>
-              Boolean(String(row?.instance_name || '').trim())
-            );
-
-            if (!remoteHasConnectedLikeChannel && localSeedChannels.length > 0) {
               for (const seedChannel of localSeedChannels) {
+                const seedInstance = String(seedChannel.instanceName || '').trim().toLowerCase();
+                if (!seedInstance || remoteInstanceSet.has(seedInstance)) continue;
                 await upsertTenantChannel({
                   tenantId: tenantCtx.tenantId,
                   userId: user.id,
@@ -431,7 +434,19 @@ const App = () => {
 
     const checkConn = async () => {
       const tenantSlug = useStore.getState().tenantSlug;
-      const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
+      let channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
+      if (tenantId) {
+        try {
+          const remoteChannels = await loadTenantChannels(tenantId);
+          const mapped = mapChannelsToStore(remoteChannels);
+          if (Array.isArray(mapped) && mapped.length > 0) {
+            setWhatsAppChannels(mapped);
+            channels = mapped;
+          }
+        } catch (error) {
+          console.error('AURA channel refresh error:', error);
+        }
+      }
       const connectedChannels = channels.filter((channel) => {
         const instance = String(channel.instanceName || '').trim();
         if (!instance) return false;
@@ -498,7 +513,7 @@ const App = () => {
     checkConn();
     const itv = setInterval(checkConn, 30000);
     return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags]);
+  }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
 
   // AUTH: Handle logout
   const handleLogout = async () => {
