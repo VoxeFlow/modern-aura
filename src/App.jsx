@@ -13,6 +13,7 @@ import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 import { isSupabaseEnabled, supabase } from './services/supabase';
 import { resolveTenantContext } from './services/tenant';
+import { loadTenantSettings, upsertTenantSettings } from './services/tenantSettings';
 import {
   ensureDefaultTenantChannel,
   isScopedInstanceName,
@@ -45,6 +46,7 @@ const App = () => {
     setWhatsAppChannels,
     setTags,
     setChatTags,
+    setKnowledgeBase,
     tenantId,
     tenantName,
     briefing,
@@ -61,6 +63,7 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [tenantBootstrapReady, setTenantBootstrapReady] = useState(false);
+  const [tenantOnboardingCompleted, setTenantOnboardingCompleted] = useState(true);
 
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
@@ -179,11 +182,80 @@ const App = () => {
         const preferredTenantId = localStorage.getItem('aura_tenant_id') || null;
         const tenantCtx = await resolveTenantContext({ user, preferredTenantId });
         if (cancelled) return;
+        const preBootstrapState = useStore.getState();
 
         setAuthIdentity({ userId: user.id, userEmail: user.email || '' });
         applyTenantContext(tenantCtx);
         if (tenantCtx?.tenantId) {
+          let onboardingDoneForTenant = true;
           localStorage.setItem('aura_tenant_id', tenantCtx.tenantId);
+
+          try {
+            let tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
+            if (!tenantSettings) {
+              const seedBriefing = String(preBootstrapState?.briefing || '');
+              const seedKnowledgeBase = Array.isArray(preBootstrapState?.knowledgeBase) ? preBootstrapState.knowledgeBase : [];
+              const seedManagerPhone = String(preBootstrapState?.managerPhone || '');
+              const seedApiUrl = String(preBootstrapState?.apiUrl || '');
+              const seedApiKey = String(preBootstrapState?.apiKey || '');
+              const hasSeedBusinessData =
+                Boolean(seedBriefing.trim()) ||
+                seedKnowledgeBase.length > 0 ||
+                Boolean(seedManagerPhone.trim());
+              const hasSeedInfraData = Boolean(seedApiUrl.trim()) || Boolean(seedApiKey.trim());
+
+              if (hasSeedBusinessData || hasSeedInfraData) {
+                await upsertTenantSettings({
+                  tenantId: tenantCtx.tenantId,
+                  userId: user.id,
+                  patch: {
+                    briefing: seedBriefing,
+                    knowledgeBase: seedKnowledgeBase,
+                    managerPhone: seedManagerPhone,
+                    apiUrl: seedApiUrl,
+                    apiKey: seedApiKey,
+                    onboardingCompleted: hasSeedBusinessData,
+                  },
+                });
+                tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
+              }
+            }
+            const remoteBriefing = String(tenantSettings?.briefing || '');
+            const remoteKnowledgeBase = Array.isArray(tenantSettings?.knowledgeBase) ? tenantSettings.knowledgeBase : [];
+            const remoteManagerPhone = String(tenantSettings?.managerPhone || '');
+            const remoteApiUrl = String(tenantSettings?.apiUrl || '');
+            const remoteApiKey = String(tenantSettings?.apiKey || '');
+
+            setKnowledgeBase(remoteKnowledgeBase);
+            setConfig({
+              briefing: remoteBriefing,
+              managerPhone: remoteManagerPhone,
+              ...(remoteApiUrl ? { apiUrl: remoteApiUrl } : {}),
+              ...(remoteApiKey ? { apiKey: remoteApiKey } : {}),
+            });
+
+            const hasTenantData = Boolean(remoteBriefing.trim()) || remoteKnowledgeBase.length > 0 || Boolean(remoteManagerPhone.trim());
+            const onboardingDone = Boolean(tenantSettings?.onboardingCompleted) || hasTenantData;
+            onboardingDoneForTenant = onboardingDone;
+            if (hasTenantData && !tenantSettings?.onboardingCompleted) {
+              await upsertTenantSettings({
+                tenantId: tenantCtx.tenantId,
+                userId: user.id,
+                patch: { onboardingCompleted: true },
+              });
+            }
+            if (!cancelled) {
+              setTenantOnboardingCompleted(onboardingDone);
+            }
+          } catch (error) {
+            console.error('AURA tenant settings bootstrap failed', error);
+            if (!cancelled) {
+              setKnowledgeBase([]);
+              setConfig({ briefing: '', managerPhone: '' });
+              setTenantOnboardingCompleted(false);
+              onboardingDoneForTenant = false;
+            }
+          }
 
           try {
             let channelRows = await ensureDefaultTenantChannel({
@@ -229,11 +301,9 @@ const App = () => {
           }
 
           if (!cancelled) {
-            const onboardingKey = `aura_onboarding_done_${tenantCtx.tenantId}`;
-            const done = localStorage.getItem(onboardingKey) === '1';
-            const needsFirstSetup = !done;
+            const needsFirstSetup = !onboardingDoneForTenant;
             if (needsFirstSetup) {
-              // Hard guarantee: a brand-new tenant always starts with a clean brain.
+              // Only reset for truly first setup (tenant-level), not per device.
               resetBrain();
             }
             setShowWelcome(needsFirstSetup);
@@ -250,11 +320,12 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, resetBrain]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, setKnowledgeBase, setConfig, resetBrain]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setTenantBootstrapReady(false);
+      setTenantOnboardingCompleted(true);
     }
   }, [isAuthenticated]);
 
@@ -268,17 +339,15 @@ const App = () => {
   // ONBOARDING SAFETY: if tenant is clean and onboarding not marked, force welcome modal.
   useEffect(() => {
     if (!isAuthenticated || !tenantId || !tenantBootstrapReady) return;
-    const onboardingKey = `aura_onboarding_done_${tenantId}`;
-    const done = localStorage.getItem(onboardingKey) === '1';
     const hasBriefing = Boolean(String(briefing || '').trim());
     const hasKnowledge = Array.isArray(knowledgeBase) && knowledgeBase.length > 0;
-    if (!done && !hasBriefing && !hasKnowledge) {
+    if (!tenantOnboardingCompleted && !hasBriefing && !hasKnowledge) {
       const timer = window.setTimeout(() => {
         setShowWelcome(true);
       }, 0);
       return () => window.clearTimeout(timer);
     }
-  }, [isAuthenticated, tenantId, tenantBootstrapReady, briefing, knowledgeBase]);
+  }, [isAuthenticated, tenantId, tenantBootstrapReady, briefing, knowledgeBase, tenantOnboardingCompleted]);
 
   // CHANNEL SYNC: keep instanceName aligned with selected channel after hydration/login.
   useEffect(() => {
@@ -397,10 +466,19 @@ const App = () => {
     setIsAuthenticated(false);
   };
 
-  const dismissWelcome = (openBriefing = false) => {
+  const dismissWelcome = async (openBriefing = false) => {
     if (tenantId) {
-      localStorage.setItem(`aura_onboarding_done_${tenantId}`, '1');
+      try {
+        await upsertTenantSettings({
+          tenantId,
+          userId: useStore.getState().userId,
+          patch: { onboardingCompleted: true },
+        });
+      } catch (error) {
+        console.error('AURA onboarding save error:', error);
+      }
     }
+    setTenantOnboardingCompleted(true);
     setShowWelcome(false);
     if (openBriefing) setIsBriefingOpen(true);
   };

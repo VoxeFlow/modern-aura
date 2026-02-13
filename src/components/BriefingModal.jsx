@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, Save, Sparkles, Brain, Edit2, Check, RefreshCw, Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { upsertTenantSettings } from '../services/tenantSettings';
 
 const BriefingModal = ({ isOpen, onClose }) => {
-    const { briefing, knowledgeBase, setConfig, setKnowledgeBase } = useStore();
+    const { briefing, knowledgeBase, setConfig, setKnowledgeBase, tenantId, userId, managerPhone } = useStore();
     const [view, setView] = useState('dashboard'); // interview, dashboard
     const [status, setStatus] = useState('idle'); // idle, thinking, showing_analysis
     const [currentQuestion, setCurrentQuestion] = useState("Para começarmos: Qual o nome da sua empresa e o que exatamente vocês fazem?");
@@ -23,6 +24,15 @@ const BriefingModal = ({ isOpen, onClose }) => {
     }, [isOpen]);
 
     if (!isOpen) return null;
+
+    const syncTenantSettings = async (patch) => {
+        if (!tenantId) return;
+        try {
+            await upsertTenantSettings({ tenantId, userId, patch });
+        } catch (error) {
+            console.error('AURA briefing sync error:', error);
+        }
+    };
 
     const handleNextInterview = async () => {
         if (!currentAnswer.trim()) return;
@@ -45,6 +55,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
             const currentKB = knowledgeBase || [];
             const newKB = [...currentKB, newItem];
             setKnowledgeBase(newKB);
+            const nextBriefing = syncBriefingText(newKB);
+            syncTenantSettings({
+                knowledgeBase: newKB,
+                briefing: nextBriefing,
+                onboardingCompleted: true,
+            });
 
             // Show analysis before moving on
             setStatus('showing_analysis');
@@ -63,7 +79,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
             if (nextQ.includes("COMPLETE") || knowledgeBase.length >= 10) {
                 setStatus('idle');
                 setView('dashboard');
-                syncBriefingText(knowledgeBase);
+                const nextBriefing = syncBriefingText(knowledgeBase);
+                syncTenantSettings({
+                    knowledgeBase: knowledgeBase || [],
+                    briefing: nextBriefing,
+                    onboardingCompleted: true,
+                });
             } else {
                 setCurrentQuestion(nextQ);
                 setCurrentAnswer("");
@@ -79,6 +100,7 @@ const BriefingModal = ({ isOpen, onClose }) => {
         const currentKB = kb || [];
         const text = currentKB.map(h => `[P]: ${h.q}\n[R]: ${h.a}`).join('\n\n');
         setConfig({ briefing: text });
+        return text;
     };
 
     const handleUpdatePoint = async (id) => {
@@ -96,7 +118,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
             );
 
             setKnowledgeBase(newKB);
-            syncBriefingText(newKB);
+            const nextBriefing = syncBriefingText(newKB);
+            syncTenantSettings({
+                knowledgeBase: newKB,
+                briefing: nextBriefing,
+                onboardingCompleted: true,
+            });
             setEditingId(null);
             setStatus('idle');
         } catch {
@@ -141,6 +168,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
                                 // EXECUTE RESET
                                 setIsResetting(true);
                                 useStore.getState().resetBrain();
+                                syncTenantSettings({
+                                    knowledgeBase: [],
+                                    briefing: '',
+                                    managerPhone: '',
+                                    onboardingCompleted: false,
+                                });
                                 localStorage.removeItem('aura-storage');
 
                                 // DELAY RELOAD FOR UX & PERSISTENCE
@@ -304,8 +337,12 @@ const BriefingModal = ({ isOpen, onClose }) => {
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"
-                                        value={useStore.getState().managerPhone}
-                                        onChange={e => setConfig({ managerPhone: e.target.value })}
+                                        value={managerPhone}
+                                        onChange={e => {
+                                            const nextPhone = e.target.value;
+                                            setConfig({ managerPhone: nextPhone });
+                                            syncTenantSettings({ managerPhone: nextPhone });
+                                        }}
                                         placeholder="Ex: 5511999999999"
                                         style={{
                                             width: '100%',

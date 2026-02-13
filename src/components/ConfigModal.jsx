@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
 import { X, Save, UserPlus, Trash2 } from 'lucide-react';
+import { upsertTenantSettings } from '../services/tenantSettings';
 
 const ConfigModal = ({ isOpen, onClose }) => {
     const {
@@ -14,6 +15,8 @@ const ConfigModal = ({ isOpen, onClose }) => {
         canAddTeamUser,
         getMaxTeamUsers,
         hasFeature,
+        tenantId,
+        userId,
     } = useStore();
 
     const [localConfig, setLocalConfig] = React.useState({
@@ -32,8 +35,24 @@ const ConfigModal = ({ isOpen, onClose }) => {
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setConfig(localConfig);
+        if (tenantId) {
+            try {
+                await upsertTenantSettings({
+                    tenantId,
+                    userId,
+                    patch: {
+                        apiUrl: localConfig.apiUrl,
+                        apiKey: localConfig.apiKey,
+                        managerPhone: localConfig.managerPhone,
+                    },
+                });
+            } catch (error) {
+                console.error('AURA tenant settings save error:', error);
+                alert('Não foi possível sincronizar as configurações no servidor.');
+            }
+        }
         onClose();
     };
 
