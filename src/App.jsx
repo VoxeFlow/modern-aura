@@ -20,9 +20,11 @@ import {
   loadLeadTagMap,
   loadConversationSummaries,
   loadCrmStagesAsTags,
+  loadTenantChannels,
   mapChannelsToStore,
   normalizeTenantChannelsScope,
   persistChatsSnapshot,
+  upsertTenantChannel,
 } from './services/tenantData';
 
 const App = () => {
@@ -130,17 +132,13 @@ const App = () => {
   // LEAD PROCESSING: Check for pending leads from Landing Page
   useEffect(() => {
     if (isAuthenticated && tenantBootstrapReady) {
-      const storedPlan = localStorage.getItem('aura_subscription_plan');
-      if (storedPlan) {
-        setSubscriptionPlan(storedPlan);
-      }
-
       const pendingLead = localStorage.getItem('aura_pending_lead');
       if (pendingLead) {
         try {
           const leadData = JSON.parse(pendingLead);
           console.log('AURA: Processing pending lead', leadData);
-          if (leadData?.plan) {
+          const isMasterMode = localStorage.getItem('aura_master_mode') === '1';
+          if (isMasterMode && leadData?.plan) {
             setSubscriptionPlan(leadData.plan);
             localStorage.setItem('aura_subscription_plan', leadData.plan);
           }
@@ -192,33 +190,54 @@ const App = () => {
 
           try {
             let tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
-            if (!tenantSettings) {
-              const seedBriefing = String(preBootstrapState?.briefing || '');
-              const seedKnowledgeBase = Array.isArray(preBootstrapState?.knowledgeBase) ? preBootstrapState.knowledgeBase : [];
-              const seedManagerPhone = String(preBootstrapState?.managerPhone || '');
-              const seedApiUrl = String(preBootstrapState?.apiUrl || '');
-              const seedApiKey = String(preBootstrapState?.apiKey || '');
-              const hasSeedBusinessData =
+            const seedBriefing = String(preBootstrapState?.briefing || '');
+            const seedKnowledgeBase = Array.isArray(preBootstrapState?.knowledgeBase) ? preBootstrapState.knowledgeBase : [];
+            const seedManagerPhone = String(preBootstrapState?.managerPhone || '');
+            const seedApiUrl = String(preBootstrapState?.apiUrl || '');
+            const seedApiKey = String(preBootstrapState?.apiKey || '');
+            const hasSeedBusinessData =
+              Boolean(seedBriefing.trim()) ||
+              seedKnowledgeBase.length > 0 ||
+              Boolean(seedManagerPhone.trim());
+            const hasSeedInfraData = Boolean(seedApiUrl.trim()) || Boolean(seedApiKey.trim());
+
+            const remoteBusinessDataExists =
+              Boolean(String(tenantSettings?.briefing || '').trim()) ||
+              (Array.isArray(tenantSettings?.knowledgeBase) && tenantSettings.knowledgeBase.length > 0) ||
+              Boolean(String(tenantSettings?.managerPhone || '').trim());
+            const remoteInfraDataExists =
+              Boolean(String(tenantSettings?.apiUrl || '').trim()) ||
+              Boolean(String(tenantSettings?.apiKey || '').trim());
+
+            const nextPatch = {};
+            if (hasSeedBusinessData && !remoteBusinessDataExists) {
+              if (seedBriefing.trim()) nextPatch.briefing = seedBriefing;
+              if (seedKnowledgeBase.length > 0) nextPatch.knowledgeBase = seedKnowledgeBase;
+              if (seedManagerPhone.trim()) nextPatch.managerPhone = seedManagerPhone;
+            }
+            if (hasSeedInfraData && !remoteInfraDataExists) {
+              if (seedApiUrl.trim()) nextPatch.apiUrl = seedApiUrl;
+              if (seedApiKey.trim()) nextPatch.apiKey = seedApiKey;
+            }
+            if (
+              !tenantSettings?.onboardingCompleted &&
+              (
+                (remoteBusinessDataExists || hasSeedBusinessData) ||
                 Boolean(seedBriefing.trim()) ||
                 seedKnowledgeBase.length > 0 ||
-                Boolean(seedManagerPhone.trim());
-              const hasSeedInfraData = Boolean(seedApiUrl.trim()) || Boolean(seedApiKey.trim());
+                Boolean(seedManagerPhone.trim())
+              )
+            ) {
+              nextPatch.onboardingCompleted = true;
+            }
 
-              if (hasSeedBusinessData || hasSeedInfraData) {
-                await upsertTenantSettings({
-                  tenantId: tenantCtx.tenantId,
-                  userId: user.id,
-                  patch: {
-                    briefing: seedBriefing,
-                    knowledgeBase: seedKnowledgeBase,
-                    managerPhone: seedManagerPhone,
-                    apiUrl: seedApiUrl,
-                    apiKey: seedApiKey,
-                    onboardingCompleted: hasSeedBusinessData,
-                  },
-                });
-                tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
-              }
+            if (Object.keys(nextPatch).length > 0) {
+              await upsertTenantSettings({
+                tenantId: tenantCtx.tenantId,
+                userId: user.id,
+                patch: nextPatch,
+              });
+              tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
             }
             const remoteBriefing = String(tenantSettings?.briefing || '');
             const remoteKnowledgeBase = Array.isArray(tenantSettings?.knowledgeBase) ? tenantSettings.knowledgeBase : [];
@@ -262,6 +281,29 @@ const App = () => {
               tenantId: tenantCtx.tenantId,
               userId: user.id,
             });
+
+            const localSeedChannels = (Array.isArray(preBootstrapState?.whatsappChannels) ? preBootstrapState.whatsappChannels : [])
+              .filter((channel) => String(channel?.instanceName || '').trim().length > 0)
+              .map((channel) => ({
+                label: String(channel?.label || 'Canal').trim() || 'Canal',
+                instanceName: String(channel?.instanceName || '').trim(),
+              }));
+
+            const remoteHasConnectedLikeChannel = (channelRows || []).some((row) =>
+              Boolean(String(row?.instance_name || '').trim())
+            );
+
+            if (!remoteHasConnectedLikeChannel && localSeedChannels.length > 0) {
+              for (const seedChannel of localSeedChannels) {
+                await upsertTenantChannel({
+                  tenantId: tenantCtx.tenantId,
+                  userId: user.id,
+                  channel: seedChannel,
+                });
+              }
+              channelRows = await loadTenantChannels(tenantCtx.tenantId);
+            }
+
             channelRows = await normalizeTenantChannelsScope({
               tenantId: tenantCtx.tenantId,
               tenantSlug: tenantCtx.tenantSlug,
