@@ -60,6 +60,7 @@ const App = () => {
   // AUTH: Check if user is authenticated
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [tenantBootstrapReady, setTenantBootstrapReady] = useState(false);
 
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
@@ -125,7 +126,7 @@ const App = () => {
 
   // LEAD PROCESSING: Check for pending leads from Landing Page
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && tenantBootstrapReady) {
       const storedPlan = localStorage.getItem('aura_subscription_plan');
       if (storedPlan) {
         setSubscriptionPlan(storedPlan);
@@ -150,12 +151,13 @@ const App = () => {
         }
       }
     }
-  }, [isAuthenticated, hasFeature, setSubscriptionPlan, switchView]);
+  }, [isAuthenticated, tenantBootstrapReady, hasFeature, setSubscriptionPlan, switchView]);
 
   // TENANT BOOTSTRAP: resolve active workspace for current authenticated user.
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
     let cancelled = false;
+    setTenantBootstrapReady(false);
 
     const bootstrapTenant = async () => {
       try {
@@ -239,12 +241,22 @@ const App = () => {
         }
       } catch (error) {
         console.error('AURA: tenant bootstrap failed', error);
+      } finally {
+        if (!cancelled) {
+          setTenantBootstrapReady(true);
+        }
       }
     };
 
     bootstrapTenant();
     return () => { cancelled = true; };
   }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, resetBrain]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTenantBootstrapReady(false);
+    }
+  }, [isAuthenticated]);
 
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
@@ -255,7 +267,7 @@ const App = () => {
 
   // ONBOARDING SAFETY: if tenant is clean and onboarding not marked, force welcome modal.
   useEffect(() => {
-    if (!isAuthenticated || !tenantId) return;
+    if (!isAuthenticated || !tenantId || !tenantBootstrapReady) return;
     const onboardingKey = `aura_onboarding_done_${tenantId}`;
     const done = localStorage.getItem(onboardingKey) === '1';
     const hasBriefing = Boolean(String(briefing || '').trim());
@@ -266,7 +278,7 @@ const App = () => {
       }, 0);
       return () => window.clearTimeout(timer);
     }
-  }, [isAuthenticated, tenantId, briefing, knowledgeBase]);
+  }, [isAuthenticated, tenantId, tenantBootstrapReady, briefing, knowledgeBase]);
 
   // CHANNEL SYNC: keep instanceName aligned with selected channel after hydration/login.
   useEffect(() => {
@@ -300,7 +312,7 @@ const App = () => {
 
   // Check WhatsApp connection status (only when authenticated)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !tenantBootstrapReady) return;
 
     const checkConn = async () => {
       const tenantSlug = useStore.getState().tenantSlug;
@@ -371,7 +383,7 @@ const App = () => {
     checkConn();
     const itv = setInterval(checkConn, 30000);
     return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags]);
+  }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags]);
 
   // AUTH: Handle logout
   const handleLogout = async () => {
@@ -400,6 +412,10 @@ const App = () => {
 
   if (!isAuthenticated) {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  }
+
+  if (!tenantBootstrapReady) {
+    return null;
   }
 
   // MAIN APP: User is authenticated

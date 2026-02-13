@@ -8,6 +8,41 @@ class WhatsAppService {
         this.serverInfoCache = null;
     }
 
+    getContactPhoneMapStorageKey() {
+        const tenantId = String(useStore.getState()?.tenantId || '').trim();
+        return tenantId ? `contactPhoneMap:${tenantId}` : 'contactPhoneMap';
+    }
+
+    readContactPhoneMap() {
+        const scopedKey = this.getContactPhoneMapStorageKey();
+        try {
+            const scopedRaw = localStorage.getItem(scopedKey);
+            if (scopedRaw) {
+                const parsed = JSON.parse(scopedRaw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+
+            if (scopedKey !== 'contactPhoneMap') {
+                const legacyRaw = localStorage.getItem('contactPhoneMap');
+                if (legacyRaw) {
+                    const legacyParsed = JSON.parse(legacyRaw);
+                    if (legacyParsed && typeof legacyParsed === 'object') {
+                        localStorage.setItem(scopedKey, JSON.stringify(legacyParsed));
+                        return legacyParsed;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error reading phone mappings:', e);
+        }
+        return {};
+    }
+
+    writeContactPhoneMap(map) {
+        const scopedKey = this.getContactPhoneMapStorageKey();
+        localStorage.setItem(scopedKey, JSON.stringify(map || {}));
+    }
+
     async request(endpoint, method = 'GET', body = null) {
         const { apiUrl, apiKey } = useStore.getState();
         if (!apiUrl || !apiKey) return null;
@@ -625,7 +660,7 @@ class WhatsAppService {
     // PHONE NUMBER EXTRACTION & MANAGEMENT
     getManualPhoneMapping(jid) {
         try {
-            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
+            const mappings = this.readContactPhoneMap();
             return mappings[jid] || null;
         } catch (e) {
             console.error('Error reading phone mappings:', e);
@@ -674,12 +709,12 @@ class WhatsAppService {
                 console.warn(`⚠️ Invalid phone mapping for ${jid}:`, phoneNumber);
                 return false;
             }
-            const mappings = JSON.parse(localStorage.getItem('contactPhoneMap') || '{}');
+            const mappings = this.readContactPhoneMap();
             const candidates = this.getCandidateJids(jid, chatData);
             candidates.forEach((candidate) => {
                 mappings[candidate] = normalized;
             });
-            localStorage.setItem('contactPhoneMap', JSON.stringify(mappings));
+            this.writeContactPhoneMap(mappings);
             console.log(`✅ Saved phone mapping: [${candidates.join(', ')}] → ${normalized}`);
             return true;
         } catch (e) {

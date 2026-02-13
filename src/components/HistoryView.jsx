@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Search, Archive } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatJid } from '../utils/formatter';
+import { getArchivedChats } from '../utils/chatStorage';
 
 const HistoryView = () => {
     const { chats, setActiveChat, activeChat } = useStore();
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Get archived chat IDs from localStorage
-    const archivedChatIds = JSON.parse(localStorage.getItem('archived_chats') || '[]');
+    // Get archived chat IDs (tenant-scoped storage)
+    const archivedChatIds = getArchivedChats();
 
     // Filter chats to show only archived ones
     const archivedChats = (Array.isArray(chats) ? chats : [])
