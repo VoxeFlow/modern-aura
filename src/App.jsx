@@ -49,6 +49,7 @@ const App = () => {
     tenantName,
     briefing,
     knowledgeBase,
+    resetBrain,
   } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
@@ -228,9 +229,12 @@ const App = () => {
           if (!cancelled) {
             const onboardingKey = `aura_onboarding_done_${tenantCtx.tenantId}`;
             const done = localStorage.getItem(onboardingKey) === '1';
-            const hasBriefing = Boolean(String(useStore.getState().briefing || '').trim());
-            const hasKnowledge = Array.isArray(useStore.getState().knowledgeBase) && useStore.getState().knowledgeBase.length > 0;
-            setShowWelcome(!done && !hasBriefing && !hasKnowledge);
+            const needsFirstSetup = !done;
+            if (needsFirstSetup) {
+              // Hard guarantee: a brand-new tenant always starts with a clean brain.
+              resetBrain();
+            }
+            setShowWelcome(needsFirstSetup);
           }
         }
       } catch (error) {
@@ -240,7 +244,7 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, resetBrain]);
 
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
