@@ -25,6 +25,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
         setWhatsAppChannels,
         hasFeature,
         tenantId,
+        tenantSlug,
         userId,
     } = useStore();
 
@@ -58,6 +59,13 @@ const ConnectModal = ({ isOpen, onClose }) => {
     const stepOneDone = Boolean(String(activeChannel?.instanceName || '').trim());
 
     const normalizeBaseUrl = (value) => String(value || '').trim().replace(/\/$/, '');
+    const tenantPrefix = String(tenantSlug || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+    const stripTenantScope = useCallback((value = '') => {
+        const raw = String(value || '').trim();
+        if (!raw || !tenantPrefix) return raw;
+        const prefix = `${tenantPrefix}--`;
+        return raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
+    }, [tenantPrefix]);
 
     const readQrFromPayload = (payload) => {
         const raw = payload?.qrcode?.base64 || payload?.base64 || payload?.qrcode || null;
@@ -74,23 +82,29 @@ const ConnectModal = ({ isOpen, onClose }) => {
             setQrCode(null);
             return;
         }
+        if (tenantPrefix && !instance.startsWith(`${tenantPrefix}--`)) {
+            setStatus('disconnected');
+            if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'disconnected');
+            setQrCode(null);
+            return;
+        }
         const currentState = await WhatsAppService.checkConnection(instance);
         setStatus(currentState);
         if (activeChannel?.id) {
             setWhatsAppChannelStatus(activeChannel.id, currentState);
         }
         if (currentState === 'open') setQrCode(null);
-    }, [activeChannel?.id, activeChannel?.instanceName, setWhatsAppChannelStatus]);
+    }, [activeChannel?.id, activeChannel?.instanceName, setWhatsAppChannelStatus, tenantPrefix]);
 
     useEffect(() => {
         if (!isOpen) return;
-        setInstanceDraft(activeChannel?.instanceName || '');
+        setInstanceDraft(stripTenantScope(activeChannel?.instanceName || ''));
         setChannelLabelDraft(activeChannel?.label || '');
         setNewChannelDraft('');
         setIsAddChannelOpen(false);
         setQrCode(null);
         checkStatus();
-    }, [isOpen, activeChannel?.id, activeChannel?.instanceName, activeChannel?.label, checkStatus]);
+    }, [isOpen, activeChannel?.id, activeChannel?.instanceName, activeChannel?.label, checkStatus, stripTenantScope]);
 
     useEffect(() => {
         if (!isOpen || !activeChannel?.instanceName || activeConnected) {
@@ -195,7 +209,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
             return false;
         }
 
-        setInstanceDraft(result.channel.instanceName);
+        setInstanceDraft(stripTenantScope(result.channel.instanceName));
         await syncChannelRow(result.channel);
         setStatus('disconnected');
         setQrCode(null);
@@ -427,7 +441,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
                                                     {connected ? 'Conectado' : 'Offline'}
                                                 </span>
                                             </div>
-                                            <span style={{ fontSize: 12, color: '#7B7D82' }}>{channel.instanceName || 'Instância não definida'}</span>
+                                    <span style={{ fontSize: 12, color: '#7B7D82' }}>{stripTenantScope(channel.instanceName) || 'Instância não definida'}</span>
                                         </button>
                                     );
                                 })}
