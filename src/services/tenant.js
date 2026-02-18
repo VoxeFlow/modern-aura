@@ -93,15 +93,15 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
     const roleRank = { owner: 0, admin: 1, agent: 2, viewer: 3 };
     const planRank = { scale: 0, pro: 1, lite: 2 };
     const orderedTenants = [...tenants].sort((a, b) => {
-        const roleA = roleRank[a.role] ?? 99;
-        const roleB = roleRank[b.role] ?? 99;
-        if (roleA !== roleB) return roleA - roleB;
-
-        if (a.hasConfig !== b.hasConfig) return a.hasConfig ? -1 : 1;
-
         const planA = planRank[cleanPlan(a.plan)] ?? 99;
         const planB = planRank[cleanPlan(b.plan)] ?? 99;
         if (planA !== planB) return planA - planB;
+
+        if (a.hasConfig !== b.hasConfig) return a.hasConfig ? -1 : 1;
+
+        const roleA = roleRank[a.role] ?? 99;
+        const roleB = roleRank[b.role] ?? 99;
+        if (roleA !== roleB) return roleA - roleB;
 
         return String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
     });
