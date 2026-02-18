@@ -67,8 +67,10 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
         rows = [{ tenant_id: tenant.id, role: 'owner', status: 'active', tenants: tenant }];
     }
 
+    const pickOne = (value) => (Array.isArray(value) ? (value[0] || null) : value);
+
     const hasTenantConfig = (settings) => {
-        const cfg = settings || {};
+        const cfg = pickOne(settings) || {};
         return (
             Boolean(cfg.onboarding_completed) ||
             Boolean(String(cfg.api_url || '').trim()) ||
@@ -81,14 +83,16 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
     const cleanPlan = (value) => String(value || '').trim().toLowerCase();
 
     const tenants = rows
-        .map((row) => ({
-            id: row?.tenants?.id || row?.tenant_id,
-            name: row?.tenants?.name || 'Workspace',
-            slug: row?.tenants?.slug || '',
-            plan: cleanPlan(row?.tenants?.plan || 'pro'),
+        .map((row) => {
+            const tenantRow = pickOne(row?.tenants);
+            return ({
+            id: tenantRow?.id || row?.tenant_id,
+            name: tenantRow?.name || 'Workspace',
+            slug: tenantRow?.slug || '',
+            plan: cleanPlan(tenantRow?.plan || 'pro'),
             role: row?.role || 'agent',
             hasConfig: hasTenantConfig(row?.tenant_settings),
-        }))
+        })})
         .filter((row) => row.id);
     const roleRank = { owner: 0, admin: 1, agent: 2, viewer: 3 };
     const planRank = { scale: 0, pro: 1, lite: 2 };
