@@ -34,9 +34,19 @@ async function assertAuthenticated({ request, env }) {
     return { ok: true };
 }
 
+function normalizePath(pathValue) {
+    if (Array.isArray(pathValue)) {
+        return pathValue
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+            .join('/');
+    }
+    return String(pathValue || '').trim();
+}
+
 function buildEvolutionUrl(baseUrl, path = '', search = '') {
     const cleanBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-    const cleanPath = String(path || '').trim().replace(/^\/+/, '');
+    const cleanPath = normalizePath(path).replace(/^\/+/, '');
     const suffix = cleanPath ? `/${cleanPath}` : '';
     return `${cleanBase}${suffix}${search || ''}`;
 }
