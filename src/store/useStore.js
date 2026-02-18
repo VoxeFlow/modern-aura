@@ -439,7 +439,8 @@ export const useStore = create(
                 return { teamUsers: users.filter((user) => user.id !== userId) };
             }),
             setChats: (chats) => {
-                console.log(`AURA: Updating store with ${chats?.length || 0} chats`);
+                const debug = false;
+                if (debug) console.log(`AURA: Updating store with ${chats?.length || 0} chats`);
                 set((state) => {
                     const list = Array.isArray(chats) ? chats : [];
                     if (state.tenantId) {
@@ -465,7 +466,7 @@ export const useStore = create(
                     });
 
                     if (taggedCount > 0) {
-                        console.log(`AURA CRM: Auto-tagged ${taggedCount} new chats as Novo Lead`);
+                        if (debug) console.log(`AURA CRM: Auto-tagged ${taggedCount} new chats as Novo Lead`);
                     }
 
                     return {
@@ -476,7 +477,8 @@ export const useStore = create(
             },
 
             setActiveChat: (chat) => set((state) => {
-                console.log("AURA: Setting active chat:", chat?.id);
+                const debug = false;
+                if (debug) console.log("AURA: Setting active chat:", chat?.id);
                 const next = {
                     activeChat: chat,
                     messages: [],
@@ -509,7 +511,8 @@ export const useStore = create(
 
                 // Use numbers-only comparison for maximum safety
                 if (getJidDigits(activeJid) === getJidDigits(jid)) {
-                    console.log(`AURA: Updating messages for ${jid} (${messages?.length || 0} msgs)`);
+                    const debug = false;
+                    if (debug) console.log(`AURA: Updating messages for ${jid} (${messages?.length || 0} msgs)`);
                     const chatKey = getChatKey(activeJid);
                     const pending = get().pendingOutgoing[chatKey] || [];
                     const { merged, stillPending } = reconcileMessages(messages || [], pending, 30 * 60 * 1000);
@@ -520,7 +523,8 @@ export const useStore = create(
                         pendingOutgoing: { ...state.pendingOutgoing, [chatKey]: stillPending },
                     }));
                 } else {
-                    console.warn(`AURA: Blocked message leak from ${jid} to ${activeJid}`);
+                    const debug = false;
+                    if (debug) console.warn(`AURA: Blocked message leak from ${jid} to ${activeJid}`);
                 }
             },
 
@@ -616,7 +620,8 @@ export const useStore = create(
 
             // FINAL GHOST FIX: Centralized view switching with guaranteed cleanup
             switchView: (viewName) => {
-                console.log(`AURA: Switching view to ${viewName}, clearing active state`);
+                const debug = false;
+                if (debug) console.log(`AURA: Switching view to ${viewName}, clearing active state`);
                 set({
                     currentView: viewName,
                     activeChat: null,
@@ -627,7 +632,8 @@ export const useStore = create(
 
             // ACTION: Logout and Clear State
             logout: () => {
-                console.log('AURA: Logging out and clearing data...');
+                const debug = false;
+                if (debug) console.log('AURA: Logging out and clearing data...');
                 set({
                     isConnected: false,
                     tenantId: null,

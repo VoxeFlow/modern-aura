@@ -8,17 +8,25 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
     const messagesEndRef = useRef(null);
     const activeJidRef = useRef(null);
     const isFirstLoadRef = useRef(true);
+    const inFlightRef = useRef(false);
     const tenantId = useStore((state) => state.tenantId);
 
     const loadMessages = useCallback(async () => {
         const jid = activeChat?.chatJid || activeChat?.sendTargetJid || activeChat?.remoteJid || activeChat?.jid || activeChat?.id;
-        if (!jid) return;
+        if (!jid || inFlightRef.current) return;
 
+        inFlightRef.current = true;
         setLoading(true);
         try {
             const linkedLid = activeChat.linkedLid || null;
             const sourceInstance = activeChat.sourceInstanceName || null;
-            const data = await WhatsAppService.fetchMessages(jid, linkedLid, activeChat, sourceInstance);
+            const data = await WhatsAppService.fetchMessages(
+                jid,
+                linkedLid,
+                activeChat,
+                sourceInstance,
+                { limit: 120 }
+            );
             if (activeJidRef.current === (activeChat?.id || jid)) {
                 setMessages(jid, data || []);
                 if (tenantId) {
@@ -34,6 +42,7 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
         } catch (error) {
             console.error('AURA ChatArea v6 Error:', error);
         } finally {
+            inFlightRef.current = false;
             setLoading(false);
         }
     }, [activeChat, setMessages, tenantId]);
@@ -54,7 +63,10 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
         if (!jid) return;
 
         loadMessages();
-        const interval = setInterval(loadMessages, 5000);
+        const interval = setInterval(() => {
+            if (document.hidden) return;
+            loadMessages();
+        }, 12000);
         return () => clearInterval(interval);
     }, [activeChat?.id, activeChat?.chatJid, clearMessages, loadMessages]);
 

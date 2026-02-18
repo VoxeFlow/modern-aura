@@ -7,6 +7,8 @@ class WhatsAppService {
     constructor() {
         this.socket = null;
         this.serverInfoCache = null;
+        this.contactsCache = new Map();
+        this.contactsCacheTtlMs = 60 * 1000;
     }
 
     getContactPhoneMapStorageKey() {
@@ -68,7 +70,8 @@ class WhatsAppService {
             url = `${baseUrl}${cleanEndpoint}`;
         }
 
-        console.log(`AURA: Fetching ${url}`);
+        const debug = false;
+        if (debug) console.log(`AURA: Fetching ${url}`);
         try {
             const response = await fetch(url, {
                 method,
@@ -415,7 +418,7 @@ class WhatsAppService {
         const data = await this.request(`/chat/findChats/${targetInstance}`, 'POST', {});
 
         // Fetch Address Book to help resolve LIDs
-        const contactsList = await this.fetchContacts(targetInstance);
+        const contactsList = await this.fetchContacts(targetInstance, { useCache: true });
         const contactsByNumber = new Map(); // number -> display name
         contactsList.forEach(c => {
             const jid = c.id || c.jid;
@@ -577,7 +580,8 @@ class WhatsAppService {
 
         // FINAL DEDUPLICATION: Ensure one chat per Phone Number
         // Sometimes the mapping logic above might miss edge cases if LIDs and Phones don't have a direct link yet.
-        console.log(`AURA: Running deduplication on ${sorted.length} chats...`);
+        const debug = false;
+        if (debug) console.log(`AURA: Running deduplication on ${sorted.length} chats...`);
         const uniquePhones = new Set();
         const deduped = sorted.filter(chat => {
             const rawId = chat.id || chat.jid || chat.remoteJid;
@@ -602,15 +606,24 @@ class WhatsAppService {
         }));
     }
 
-    async fetchContacts(instanceOverride = null) {
+    async fetchContacts(instanceOverride = null, options = {}) {
         const { instanceName } = useStore.getState();
         const targetInstance = instanceOverride || instanceName;
         if (!targetInstance) return [];
+        const { useCache = true } = options;
+        const cacheKey = String(targetInstance || '').toLowerCase();
+        const now = Date.now();
+        const cached = this.contactsCache.get(cacheKey);
+        if (useCache && cached && (now - cached.timestamp) < this.contactsCacheTtlMs) {
+            return cached.data;
+        }
         try {
             // v2 standard: POST to findContacts to get address book
             const data = await this.request(`/chat/findContacts/${targetInstance}`, 'POST', {});
             const list = Array.isArray(data) ? data : (data?.records || data?.contacts || []);
-            return Array.isArray(list) ? list : [];
+            const normalized = Array.isArray(list) ? list : [];
+            this.contactsCache.set(cacheKey, { timestamp: now, data: normalized });
+            return normalized;
         } catch (e) {
             console.error("Error fetching contacts:", e);
             return [];
@@ -657,11 +670,12 @@ class WhatsAppService {
         return list[0] || null;
     }
 
-    async fetchMessages(jid, linkedJid = null, chatData = null, instanceOverride = null) {
+    async fetchMessages(jid, linkedJid = null, chatData = null, instanceOverride = null, options = {}) {
         const { instanceName } = useStore.getState();
         const targetInstance = instanceOverride || instanceName;
         const cleanJid = this.standardizeJid(jid);
         if (!targetInstance || !cleanJid) return [];
+        const limit = Math.max(20, Math.min(300, Number(options?.limit || 120)));
 
         const tryFetch = async (targetJid, altJid = null) => {
             if (!targetJid) return [];
@@ -673,7 +687,7 @@ class WhatsAppService {
                     where: {
                         key: keyWhere,
                     },
-                    offset: 500,
+                    offset: limit,
                     page: 1,
                 });
                 const list = data?.messages?.records || data?.records || data?.messages || [];
