@@ -28,6 +28,7 @@ import {
 } from './services/tenantData';
 
 const App = () => {
+  const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
   const {
     setIsConnected,
@@ -66,11 +67,11 @@ const App = () => {
   const [authReady, setAuthReady] = useState(false);
   const [tenantBootstrapReady, setTenantBootstrapReady] = useState(false);
   const [tenantOnboardingCompleted, setTenantOnboardingCompleted] = useState(true);
+  const [envFatal, setEnvFatal] = useState('');
 
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
     let mounted = true;
-    const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
     const checkLegacyToken = () => {
       const token = localStorage.getItem('auth_token');
@@ -92,6 +93,18 @@ const App = () => {
     };
 
     const checkAuth = async () => {
+      if (!isLocalhost && !isSupabaseEnabled) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('aura_master_mode');
+        localStorage.removeItem('aura_tenant_id');
+        if (mounted) {
+          setIsAuthenticated(false);
+          setAuthReady(true);
+          setEnvFatal('Configuração obrigatória ausente no ambiente online: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
+        }
+        return;
+      }
+
       let authed = false;
       if (isSupabaseEnabled) {
         const { data } = await supabase.auth.getSession();
@@ -131,7 +144,7 @@ const App = () => {
       window.removeEventListener('storage', onStorage);
       authListener?.data?.subscription?.unsubscribe?.();
     };
-  }, []);
+  }, [isLocalhost]);
 
   // LEAD PROCESSING: Check for pending leads from Landing Page
   useEffect(() => {
@@ -161,12 +174,17 @@ const App = () => {
   // TENANT BOOTSTRAP: resolve active workspace for current authenticated user.
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
+    if (envFatal) return;
     let cancelled = false;
     setTenantBootstrapReady(false);
 
     const bootstrapTenant = async () => {
       try {
         if (!isSupabaseEnabled) {
+          if (!isLocalhost) {
+            setEnvFatal('Ambiente online sem Supabase configurado. Acesse Settings > Environment Variables no Cloudflare Pages.');
+            return;
+          }
           setAuthIdentity({ userId: null, userEmail: 'legacy@local' });
           applyTenantContext({
             tenantId: 'legacy-local',
@@ -370,7 +388,7 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, setKnowledgeBase, setConfig, resetBrain]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, setKnowledgeBase, setConfig, resetBrain, envFatal, isLocalhost]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -548,6 +566,20 @@ const App = () => {
   // AUTH: /app should always show login when unauthenticated
   if (!authReady) {
     return null;
+  }
+
+  if (envFatal) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f5f5f7', padding: 24 }}>
+        <div style={{ maxWidth: 720, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 24 }}>
+          <h2 style={{ margin: 0, marginBottom: 10 }}>Configuração obrigatória ausente</h2>
+          <p style={{ margin: 0, color: '#4b5563' }}>{envFatal}</p>
+          <p style={{ marginTop: 12, color: '#6b7280' }}>
+            Este bloqueio evita modo local no ambiente online e protege o isolamento de dados entre empresas.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
