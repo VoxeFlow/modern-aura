@@ -8,6 +8,7 @@ import BriefingModal from './components/BriefingModal';
 import HistoryView from './components/HistoryView';
 import CRMView from './components/CRMView';
 import LoginScreen from './components/LoginScreen';
+import OwnerView from './components/OwnerView';
 import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
@@ -207,17 +208,21 @@ const App = () => {
 
         setAuthIdentity({ userId: user.id, userEmail: user.email || '' });
         applyTenantContext(tenantCtx);
+        setSubscriptionPlan(tenantCtx.tenantPlan || 'pro');
         if (tenantCtx?.tenantId) {
           let onboardingDoneForTenant = true;
           localStorage.setItem('aura_tenant_id', tenantCtx.tenantId);
 
           try {
             let tenantSettings = await loadTenantSettings(tenantCtx.tenantId);
-            const seedBriefing = String(preBootstrapState?.briefing || '');
-            const seedKnowledgeBase = Array.isArray(preBootstrapState?.knowledgeBase) ? preBootstrapState.knowledgeBase : [];
-            const seedManagerPhone = String(preBootstrapState?.managerPhone || '');
-            const seedApiUrl = String(preBootstrapState?.apiUrl || '');
-            const seedApiKey = String(preBootstrapState?.apiKey || '');
+            // Security rule: never seed tenant data from local browser state in online SaaS mode.
+            // Local seeding is allowed only for localhost development convenience.
+            const allowLocalSeed = isLocalhost;
+            const seedBriefing = allowLocalSeed ? String(preBootstrapState?.briefing || '') : '';
+            const seedKnowledgeBase = allowLocalSeed && Array.isArray(preBootstrapState?.knowledgeBase) ? preBootstrapState.knowledgeBase : [];
+            const seedManagerPhone = allowLocalSeed ? String(preBootstrapState?.managerPhone || '') : '';
+            const seedApiUrl = allowLocalSeed ? String(preBootstrapState?.apiUrl || '') : '';
+            const seedApiKey = allowLocalSeed ? String(preBootstrapState?.apiKey || '') : '';
             const hasSeedBusinessData =
               Boolean(seedBriefing.trim()) ||
               seedKnowledgeBase.length > 0 ||
@@ -379,6 +384,9 @@ const App = () => {
         }
       } catch (error) {
         console.error('AURA: tenant bootstrap failed', error);
+        if (!cancelled) {
+          setEnvFatal(`Falha ao inicializar o tenant deste usuário. Detalhe: ${error?.message || 'erro desconhecido'}`);
+        }
       } finally {
         if (!cancelled) {
           setTenantBootstrapReady(true);
@@ -388,7 +396,7 @@ const App = () => {
 
     bootstrapTenant();
     return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setWhatsAppChannels, setTags, setChats, setChatTags, setKnowledgeBase, setConfig, resetBrain, envFatal, isLocalhost]);
+  }, [authReady, isAuthenticated, setAuthIdentity, applyTenantContext, setSubscriptionPlan, setWhatsAppChannels, setTags, setChats, setChatTags, setKnowledgeBase, setConfig, resetBrain, envFatal, isLocalhost]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -610,6 +618,8 @@ const App = () => {
       <main className={`main-content ${activeChat ? 'mobile-chat-open' : 'mobile-chat-closed'}`}>
         {currentView === 'crm' ? (
           <CRMView />
+        ) : currentView === 'owner' ? (
+          <OwnerView />
         ) : activeChat ? (
           <ChatArea isArchived={currentView === 'history'} onBack={() => setActiveChat(null)} />
         ) : (

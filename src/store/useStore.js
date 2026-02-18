@@ -168,12 +168,13 @@ export const useStore = create(
             applyTenantContext: ({ tenantId = null, tenantSlug = '', tenantName = '', tenantPlan = 'pro', tenants = [] } = {}) => set((state) => {
                 const nextTenantId = tenantId || null;
                 const hasTenantChanged = state.tenantId !== nextTenantId;
+                const normalizedTenantPlan = normalizePlan(tenantPlan || 'pro');
                 const base = {
                     tenantId: nextTenantId,
                     tenantSlug: tenantSlug || '',
                     tenantName: tenantName || '',
-                    tenantPlan: normalizePlan(tenantPlan || 'pro'),
-                    subscriptionPlan: normalizePlan(tenantPlan || state.subscriptionPlan || 'pro'),
+                    tenantPlan: normalizedTenantPlan,
+                    subscriptionPlan: normalizedTenantPlan,
                     availableTenants: Array.isArray(tenants) ? tenants : [],
                 };
                 if (!hasTenantChanged) return base;
@@ -199,7 +200,7 @@ export const useStore = create(
                     whatsappChannelStatus: {},
                     teamUsers: DEFAULT_TEAM_USERS,
                     apiKey: '',
-                    subscriptionPlan: normalizePlan(import.meta.env.VITE_DEFAULT_PLAN || 'pro'),
+                    subscriptionPlan: normalizedTenantPlan,
                     aiUsageByMonth: {},
                 };
             }),

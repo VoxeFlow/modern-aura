@@ -1,12 +1,13 @@
-import { X, LayoutDashboard, Kanban, History, Settings, LogOut, Brain, Zap } from 'lucide-react';
+import { X, LayoutDashboard, Kanban, History, Settings, LogOut, Brain, Zap, Crown } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import logoLight from '../assets/logo-light.png';
 
 const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen, onClose }) => {
-    const { activeChat, currentView, switchView, hasFeature, subscriptionPlan, getPlanConfig, setSubscriptionPlan, tenantName } = useStore();
+    const { activeChat, currentView, switchView, hasFeature, tenantPlan, getPlanConfig, tenantName, userEmail } = useStore();
     const hasCrm = hasFeature('crm_basic');
-    const planLabel = getPlanConfig()?.label || String(subscriptionPlan || '').toUpperCase();
-    const isMasterMode = localStorage.getItem('aura_master_mode') === '1';
+    const planLabel = getPlanConfig()?.label || String(tenantPlan || '').toUpperCase();
+    const masterEmail = String(import.meta.env.VITE_MASTER_EMAIL || '').trim().toLowerCase();
+    const isPlatformOwner = Boolean(masterEmail) && String(userEmail || '').trim().toLowerCase() === masterEmail;
     return (
         <>
             {/* Mobile Overlay */}
@@ -33,6 +34,11 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                         <li className={currentView === 'history' ? 'active' : ''} onClick={() => switchView('history')} title="Histórico">
                             <History size={24} />
                         </li>
+                        {isPlatformOwner && (
+                            <li className={currentView === 'owner' ? 'active' : ''} onClick={() => switchView('owner')} title="Dono do Sistema">
+                                <Crown size={24} />
+                            </li>
+                        )}
                     </ul>
                 </nav>
 
@@ -118,28 +124,6 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                             <div style={{ fontSize: '10px', opacity: 0.55, color: '#7a7f88', marginTop: '2px' }}>
                                 Tenant: {tenantName}
                             </div>
-                        )}
-                        {isMasterMode && (
-                            <select
-                                value={subscriptionPlan}
-                                onChange={(e) => {
-                                    setSubscriptionPlan(e.target.value);
-                                    localStorage.setItem('aura_subscription_plan', e.target.value);
-                                }}
-                                style={{
-                                    marginTop: '6px',
-                                    fontSize: '10px',
-                                    borderRadius: '8px',
-                                    padding: '3px 6px',
-                                    border: '1px solid rgba(197, 160, 89, 0.35)',
-                                    background: '#fff',
-                                    color: '#1d1d1f',
-                                }}
-                            >
-                                <option value="lite">Lite</option>
-                                <option value="pro">Pro</option>
-                                <option value="scale">Scale</option>
-                            </select>
                         )}
 
                         <div className="conn-status" style={{ fontSize: '8px', opacity: 0.3, marginTop: '2px', textAlign: 'center', wordBreak: 'break-all', padding: '0 5px' }}>
