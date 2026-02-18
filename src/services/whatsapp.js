@@ -196,23 +196,15 @@ class WhatsAppService {
         const targetInstance = instanceOverride || instanceName;
         if (!targetInstance) return null;
 
-        // v2 standard: GET to connect instance
-        // If 404, it means instance doesn't exist. We must CREATE it.
+        // Evolution endpoint in this environment is GET /instance/connect/:name
+        // If 404, instance does not exist yet and we create it first.
         try {
-            let response = await this.request(`/instance/connect/${targetInstance}`);
-            if (response?.error && (response.status === 404 || response.status === 405)) {
-                response = await this.request(`/instance/connect/${targetInstance}`, 'POST');
-            }
+            let response = await this.request(`/instance/connect/${targetInstance}`, 'GET');
 
-            // Check for specific 404 or error in response payload if request() swallowed it
             if (!response || (response.error && response.status === 404) || (response.response && response.response.message && response.response.message.includes('does not exist'))) {
                 console.warn(`AURA: Instance ${targetInstance} not found. Creating...`);
                 await this.createInstance(targetInstance);
-                // Try connecting again after creation
-                let retry = await this.request(`/instance/connect/${targetInstance}`);
-                if (retry?.error && (retry.status === 404 || retry.status === 405)) {
-                    retry = await this.request(`/instance/connect/${targetInstance}`, 'POST');
-                }
+                let retry = await this.request(`/instance/connect/${targetInstance}`, 'GET');
                 return retry;
             }
 
