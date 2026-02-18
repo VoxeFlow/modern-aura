@@ -55,7 +55,7 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
 
     const { data: memberships, error } = await supabase
         .from('tenant_memberships')
-        .select('tenant_id, role, status, tenants:tenant_id(id, name, slug, plan), tenant_settings:tenant_id(onboarding_completed,api_url,api_key,manager_phone,briefing)')
+        .select('tenant_id, role, status')
         .eq('user_id', user.id)
         .eq('status', 'active');
 
@@ -64,10 +64,31 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
     let rows = Array.isArray(memberships) ? memberships : [];
     if (rows.length === 0) {
         const tenant = await createTenantForUser(user);
-        rows = [{ tenant_id: tenant.id, role: 'owner', status: 'active', tenants: tenant }];
+        rows = [{ tenant_id: tenant.id, role: 'owner', status: 'active' }];
     }
 
     const pickOne = (value) => (Array.isArray(value) ? (value[0] || null) : value);
+    const tenantIds = [...new Set(rows.map((row) => row?.tenant_id).filter(Boolean))];
+
+    let tenantMap = new Map();
+    if (tenantIds.length > 0) {
+        const { data: tenantRows, error: tenantError } = await supabase
+            .from('tenants')
+            .select('id,name,slug,plan')
+            .in('id', tenantIds);
+        if (tenantError) throw tenantError;
+        tenantMap = new Map((tenantRows || []).map((row) => [row.id, row]));
+    }
+
+    let tenantSettingsMap = new Map();
+    if (tenantIds.length > 0) {
+        const { data: settingsRows, error: settingsError } = await supabase
+            .from('tenant_settings')
+            .select('tenant_id,onboarding_completed,api_url,api_key,manager_phone,briefing')
+            .in('tenant_id', tenantIds);
+        if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+        tenantSettingsMap = new Map((settingsRows || []).map((row) => [row.tenant_id, row]));
+    }
 
     const hasTenantConfig = (settings) => {
         const cfg = pickOne(settings) || {};
@@ -84,14 +105,15 @@ export async function resolveTenantContext({ user, preferredTenantId = null }) {
 
     const tenants = rows
         .map((row) => {
-            const tenantRow = pickOne(row?.tenants);
+            const tenantRow = tenantMap.get(row?.tenant_id);
+            const tenantSettings = tenantSettingsMap.get(row?.tenant_id) || null;
             return ({
             id: tenantRow?.id || row?.tenant_id,
             name: tenantRow?.name || 'Workspace',
             slug: tenantRow?.slug || '',
             plan: cleanPlan(tenantRow?.plan || 'pro'),
             role: row?.role || 'agent',
-            hasConfig: hasTenantConfig(row?.tenant_settings),
+            hasConfig: hasTenantConfig(tenantSettings),
         })})
         .filter((row) => row.id);
     const roleRank = { owner: 0, admin: 1, agent: 2, viewer: 3 };
