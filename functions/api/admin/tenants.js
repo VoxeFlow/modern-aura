@@ -1,6 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 const ALLOWED_PLANS = new Set(['lite', 'pro', 'scale']);
+const EMPTY_METRICS = {
+    total_messages: 0,
+    messages_30d: 0,
+    total_ai_events: 0,
+    ai_events_30d: 0,
+    open_conversations: 0,
+    open_leads: 0,
+    last_message_at: null,
+};
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -93,16 +102,97 @@ async function listTenants(admin) {
         return acc;
     }, {});
 
-    return (tenants || []).map((tenant) => ({
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        plan: String(tenant.plan || 'pro').toLowerCase(),
-        owner_email: ownerEmailById.get(tenant.owner_user_id) || '',
-        team_count: membersByTenant[tenant.id]?.size || 0,
-        channel_count: channelsByTenant[tenant.id] || 0,
-        created_at: tenant.created_at,
-        updated_at: tenant.updated_at,
+    const safeCount = async (builderFactory) => {
+        try {
+            const { count, error } = await builderFactory();
+            if (error) return 0;
+            return Number(count || 0);
+        } catch {
+            return 0;
+        }
+    };
+
+    const safeLastMessageAt = async (tenantId) => {
+        try {
+            const { data, error } = await admin
+                .from('messages')
+                .select('sent_at')
+                .eq('tenant_id', tenantId)
+                .order('sent_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            if (error) return null;
+            return data?.sent_at || null;
+        } catch {
+            return null;
+        }
+    };
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const rows = await Promise.all((tenants || []).map(async (tenant) => {
+        const tenantId = tenant.id;
+        const totalMessages = await safeCount(() =>
+            admin.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId)
+        );
+        const messages30d = await safeCount(() =>
+            admin
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .gte('sent_at', thirtyDaysAgo)
+        );
+        const totalAiEvents = await safeCount(() =>
+            admin.from('ai_learning_events').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId)
+        );
+        const aiEvents30d = await safeCount(() =>
+            admin
+                .from('ai_learning_events')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .gte('created_at', thirtyDaysAgo)
+        );
+        const openConversations = await safeCount(() =>
+            admin
+                .from('conversations')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .in('status', ['open', 'pending'])
+        );
+        const openLeads = await safeCount(() =>
+            admin
+                .from('crm_leads')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('status', 'open')
+        );
+        const lastMessageAt = await safeLastMessageAt(tenantId);
+
+        return {
+            id: tenant.id,
+            name: tenant.name,
+            slug: tenant.slug,
+            plan: String(tenant.plan || 'pro').toLowerCase(),
+            owner_email: ownerEmailById.get(tenant.owner_user_id) || '',
+            team_count: membersByTenant[tenant.id]?.size || 0,
+            channel_count: channelsByTenant[tenant.id] || 0,
+            created_at: tenant.created_at,
+            updated_at: tenant.updated_at,
+            metrics: {
+                total_messages: totalMessages,
+                messages_30d: messages30d,
+                total_ai_events: totalAiEvents,
+                ai_events_30d: aiEvents30d,
+                open_conversations: openConversations,
+                open_leads: openLeads,
+                last_message_at: lastMessageAt,
+            },
+        };
+    }));
+
+    return rows.map((row) => ({
+        ...row,
+        metrics: { ...EMPTY_METRICS, ...(row.metrics || {}) },
     }));
 }
 

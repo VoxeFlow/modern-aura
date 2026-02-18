@@ -35,10 +35,13 @@ const Sidebar = ({ onOpenConfig, onOpenConnect, onOpenBriefing, onLogout, isOpen
                             <History size={24} />
                         </li>
                         {isPlatformOwner && (
-                            <li className={currentView === 'owner' ? 'active' : ''} onClick={() => switchView('owner')} title="Dono do Sistema">
+                            <li className={currentView === 'owner' ? 'active' : ''} onClick={() => switchView('owner')} title="Central da Plataforma">
                                 <Crown size={24} />
                             </li>
                         )}
+                        <li className={currentView === 'monstro_admin' ? 'active' : ''} onClick={() => switchView('monstro_admin')} title="O MONSTRO Admin">
+                            <Zap size={24} className="text-monstro-primary" />
+                        </li>
                     </ul>
                 </nav>
 
