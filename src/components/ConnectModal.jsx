@@ -13,6 +13,7 @@ import {
 const ConnectModal = ({ isOpen, onClose }) => {
     const {
         apiUrl,
+        apiKey,
         whatsappChannels,
         activeWhatsAppChannelId,
         switchWhatsAppChannel,
@@ -67,7 +68,15 @@ const ConnectModal = ({ isOpen, onClose }) => {
     }, [tenantPrefix]);
 
     const readQrFromPayload = (payload) => {
-        const raw = payload?.qrcode?.base64 || payload?.base64 || payload?.qrcode || null;
+        const raw = payload?.qrcode?.base64
+            || payload?.base64
+            || payload?.qrcode
+            || payload?.code
+            || payload?.qr
+            || payload?.data?.qrcode?.base64
+            || payload?.data?.base64
+            || payload?.data?.qrcode
+            || null;
         if (!raw || typeof raw !== 'string') return null;
         const clean = raw.replace(/^data:image\/[a-z]+;base64,/, '');
         return `data:image/png;base64,${clean}`;
@@ -217,6 +226,10 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
     const handleGenerateQr = async () => {
         if (!(await handleSaveInstance())) return;
+        if (!String(apiUrl || '').trim() || !String(apiKey || '').trim()) {
+            alert('Configure API URL e API Key antes de gerar o QR.');
+            return;
+        }
 
         setLoading(true);
         if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'connecting');
@@ -233,6 +246,11 @@ const ConnectModal = ({ isOpen, onClose }) => {
             const nextQr = readQrFromPayload(data);
             if (nextQr) {
                 setQrCode(nextQr);
+            } else if (data?.error) {
+                const msg = data?.response?.message || data?.message || `Falha ao gerar QR (status ${data?.status || 'desconhecido'}).`;
+                alert(msg);
+            } else if (liveState !== 'open') {
+                alert('A Evolution não retornou QR. Clique em Atualizar e tente novamente.');
             }
         } catch (error) {
             console.error('AURA connect error:', error);

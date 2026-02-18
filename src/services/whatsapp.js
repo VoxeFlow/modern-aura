@@ -60,13 +60,19 @@ class WhatsAppService {
                 body: body ? JSON.stringify(body) : null
             });
 
+            const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+            const isJson = contentType.includes('application/json');
+
             if (!response.ok) {
-                // Return error object instead of null so we can handle 404s
-                const errorBody = await response.json().catch(() => ({}));
+                const errorBody = isJson
+                    ? await response.json().catch(() => ({}))
+                    : { message: await response.text().catch(() => '') };
                 return { error: true, status: response.status, ...errorBody };
             }
 
-            return await response.json();
+            if (isJson) return await response.json();
+            const text = await response.text().catch(() => '');
+            return { ok: true, text };
         } catch (e) {
             console.error("API Request Error:", e);
             return { error: true, message: e.message };
@@ -193,14 +199,21 @@ class WhatsAppService {
         // v2 standard: GET to connect instance
         // If 404, it means instance doesn't exist. We must CREATE it.
         try {
-            const response = await this.request(`/instance/connect/${targetInstance}`);
+            let response = await this.request(`/instance/connect/${targetInstance}`);
+            if (response?.error && (response.status === 404 || response.status === 405)) {
+                response = await this.request(`/instance/connect/${targetInstance}`, 'POST');
+            }
 
             // Check for specific 404 or error in response payload if request() swallowed it
             if (!response || (response.error && response.status === 404) || (response.response && response.response.message && response.response.message.includes('does not exist'))) {
                 console.warn(`AURA: Instance ${targetInstance} not found. Creating...`);
                 await this.createInstance(targetInstance);
                 // Try connecting again after creation
-                return await this.request(`/instance/connect/${targetInstance}`);
+                let retry = await this.request(`/instance/connect/${targetInstance}`);
+                if (retry?.error && (retry.status === 404 || retry.status === 405)) {
+                    retry = await this.request(`/instance/connect/${targetInstance}`, 'POST');
+                }
+                return retry;
             }
 
             return response;
