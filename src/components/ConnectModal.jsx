@@ -34,7 +34,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
     const [status, setStatus] = useState('checking');
     const socketRef = useRef(null);
     const [instanceDraft, setInstanceDraft] = useState('');
-    const [channelLabelDraft, setChannelLabelDraft] = useState('');
     const [newChannelDraft, setNewChannelDraft] = useState('');
     const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
 
@@ -98,8 +97,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         if (!isOpen) return;
-        setInstanceDraft(stripTenantScope(activeChannel?.instanceName || ''));
-        setChannelLabelDraft(activeChannel?.label || '');
+        setInstanceDraft(stripTenantScope(activeChannel?.instanceName || activeChannel?.label || ''));
         setNewChannelDraft('');
         setIsAddChannelOpen(false);
         setQrCode(null);
@@ -197,6 +195,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
     const handleSaveInstance = async () => {
         const result = updateWhatsAppChannel(activeChannel?.id, {
+            label: instanceDraft,
             instanceName: instanceDraft,
         });
 
@@ -242,26 +241,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
             setLoading(false);
             checkStatus();
         }
-    };
-
-    const handleSaveChannelLabel = () => {
-        const cleanLabel = String(channelLabelDraft || '').trim();
-        if (!cleanLabel) {
-            alert('Informe um nome válido.');
-            return;
-        }
-
-        const result = updateWhatsAppChannel(activeChannel?.id, {
-            label: cleanLabel,
-        });
-
-        if (!result.ok) {
-            alert('Não foi possível salvar o nome.');
-            return;
-        }
-
-        setChannelLabelDraft(result.channel.label);
-        syncChannelRow(result.channel);
     };
 
     const handleDisconnect = async () => {
@@ -447,7 +426,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
                                                     {connected ? 'Conectado' : 'Offline'}
                                                 </span>
                                             </div>
-                                    <span style={{ fontSize: 12, color: '#7B7D82' }}>{stripTenantScope(channel.instanceName) || 'Instância não definida'}</span>
                                         </button>
                                     );
                                 })}
@@ -509,46 +487,12 @@ const ConnectModal = ({ isOpen, onClose }) => {
                                 </button>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
-                                <input
-                                    type="text"
-                                    value={channelLabelDraft}
-                                    onChange={(e) => setChannelLabelDraft(e.target.value)}
-                                    placeholder="Nome exibido da instância"
-                                    style={{
-                                        height: 42,
-                                        borderRadius: 10,
-                                        border: '1px solid #D8DAE0',
-                                        padding: '0 12px',
-                                        fontSize: 14,
-                                        background: '#fff',
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleSaveChannelLabel}
-                                    style={{
-                                        height: 42,
-                                        borderRadius: 10,
-                                        border: '1px solid #D8DAE0',
-                                        background: '#fff',
-                                        color: '#3d4148',
-                                        cursor: 'pointer',
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        padding: '0 12px',
-                                    }}
-                                >
-                                    Salvar nome
-                                </button>
-                            </div>
-
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
                                 <input
                                     type="text"
                                     value={instanceDraft}
                                     onChange={(e) => setInstanceDraft(e.target.value)}
-                                    placeholder="Nome da instância"
+                                    placeholder="Nome do canal"
                                     style={{
                                         height: 46,
                                         borderRadius: 10,
@@ -622,7 +566,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
                             {activeConnected && (
                                 <p style={{ margin: 0, fontSize: 12, color: '#72757c' }}>
-                                    Você pode editar o nome exibido sem desconectar. Para alterar o nome técnico da instância, desconecte e reconecte.
+                                    Nome único ativo para este canal.
                                 </p>
                             )}
 
