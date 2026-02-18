@@ -56,7 +56,7 @@ class WhatsAppService {
         const headers = { 'Content-Type': 'application/json' };
         let url = '';
         if (shouldUseProxy) {
-            url = `/api/evolution/${cleanPath}`;
+            url = `/api/evolution?path=${encodeURIComponent(cleanPath)}`;
             if (isSupabaseEnabled) {
                 const { data } = await supabase.auth.getSession();
                 const token = data?.session?.access_token || '';

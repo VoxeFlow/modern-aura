@@ -34,25 +34,15 @@ async function assertAuthenticated({ request, env }) {
     return { ok: true };
 }
 
-function normalizePath(pathValue) {
-    if (Array.isArray(pathValue)) {
-        return pathValue
-            .map((item) => String(item || '').trim())
-            .filter(Boolean)
-            .join('/');
-    }
-    return String(pathValue || '').trim();
-}
-
 function buildEvolutionUrl(baseUrl, path = '', search = '') {
     const cleanBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-    const cleanPath = normalizePath(path).replace(/^\/+/, '');
+    const cleanPath = String(path || '').trim().replace(/^\/+/, '');
     const suffix = cleanPath ? `/${cleanPath}` : '';
     return `${cleanBase}${suffix}${search || ''}`;
 }
 
 export async function onRequest(context) {
-    const { request, env, params } = context;
+    const { request, env } = context;
 
     if (request.method === 'OPTIONS') return json({ ok: true });
 
@@ -63,12 +53,16 @@ export async function onRequest(context) {
         const evolutionUrl = getEnvOrThrow(env, ['EVOLUTION_API_URL', 'VITE_API_URL']);
         const evolutionKey = getEnvOrThrow(env, ['EVOLUTION_API_KEY', 'VITE_API_KEY']);
         const url = new URL(request.url);
-        const path = String(params?.path || '');
-        const upstreamUrl = buildEvolutionUrl(evolutionUrl, path, url.search);
+        const path = String(url.searchParams.get('path') || '').trim();
+        if (!path) return json({ error: 'Parâmetro path é obrigatório.' }, 400);
+
+        const passthroughSearch = new URLSearchParams(url.searchParams);
+        passthroughSearch.delete('path');
+        const qs = passthroughSearch.toString();
+        const upstreamUrl = buildEvolutionUrl(evolutionUrl, path, qs ? `?${qs}` : '');
 
         const headers = new Headers();
         headers.set('apikey', evolutionKey);
-
         const contentType = request.headers.get('content-type');
         if (contentType) headers.set('content-type', contentType);
 
