@@ -182,13 +182,46 @@ class WhatsAppService {
     async createInstance(name) {
         if (!name) return null;
         console.log(`AURA: Creating instance ${name}...`);
-        // FIX: Use proven payload for Evolution API v2
-        return await this.request('/instance/create', 'POST', {
-            instanceName: name,
-            token: name,
-            qrcode: false,
-            integration: 'WHATSAPP-BAILEYS'
-        });
+        const attempts = [
+            { instanceName: name, token: name, qrcode: false, integration: 'WHATSAPP-BAILEYS' },
+            { instanceName: name, token: name, qrcode: true, integration: 'WHATSAPP-BAILEYS' },
+            { instanceName: name, token: name },
+            { instanceName: name },
+        ];
+
+        let last = null;
+        for (const payload of attempts) {
+            last = await this.request('/instance/create', 'POST', payload);
+            if (last && !last.error) return last;
+            const msg = this.extractApiErrorMessage(last);
+            if (msg.includes('already') || msg.includes('exists') || msg.includes('conflit')) {
+                return { ok: true, message: 'instance already exists' };
+            }
+        }
+        return last;
+    }
+
+    extractApiErrorMessage(payload) {
+        return String(
+            payload?.response?.message ||
+            payload?.message ||
+            payload?.error ||
+            payload?.detail ||
+            ''
+        ).toLowerCase();
+    }
+
+    isMissingInstanceResponse(payload) {
+        if (!payload) return true;
+        const msg = this.extractApiErrorMessage(payload);
+        if (!msg) return false;
+        return (
+            msg.includes('does not exist') ||
+            msg.includes('not exist') ||
+            msg.includes('instance not found') ||
+            msg.includes('not found') ||
+            msg.includes('inexist')
+        );
     }
 
     async connectInstance(instanceOverride = null) {
@@ -201,9 +234,13 @@ class WhatsAppService {
         try {
             let response = await this.request(`/instance/connect/${targetInstance}`, 'GET');
 
-            if (!response || (response.error && response.status === 404) || (response.response && response.response.message && response.response.message.includes('does not exist'))) {
+            if (this.isMissingInstanceResponse(response)) {
                 console.warn(`AURA: Instance ${targetInstance} not found. Creating...`);
-                await this.createInstance(targetInstance);
+                const created = await this.createInstance(targetInstance);
+                if (created?.error && !String(this.extractApiErrorMessage(created)).includes('already')) {
+                    return created;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 500));
                 let retry = await this.request(`/instance/connect/${targetInstance}`, 'GET');
                 return retry;
             }
