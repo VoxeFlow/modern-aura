@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore';
 import { io } from 'socket.io-client';
 import { dedupeMessages, getJidDigits } from '../utils/messageSync';
+import { isSupabaseEnabled, supabase } from './supabase';
 
 class WhatsAppService {
     constructor() {
@@ -44,13 +45,28 @@ class WhatsAppService {
     }
 
     async request(endpoint, method = 'GET', body = null) {
-        const { apiUrl, apiKey } = useStore.getState();
-        if (!apiUrl || !apiKey) return null;
-
-        const headers = { 'Content-Type': 'application/json', 'apikey': apiKey };
-        const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
         const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-        const url = `${baseUrl}${cleanEndpoint}`;
+        const cleanPath = cleanEndpoint.replace(/^\/+/, '');
+        const isLocalhost =
+            typeof window !== 'undefined'
+            && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const { apiUrl, apiKey } = useStore.getState();
+        const shouldUseProxy = !isLocalhost || !apiUrl || !apiKey;
+
+        const headers = { 'Content-Type': 'application/json' };
+        let url = '';
+        if (shouldUseProxy) {
+            url = `/api/evolution/${cleanPath}`;
+            if (isSupabaseEnabled) {
+                const { data } = await supabase.auth.getSession();
+                const token = data?.session?.access_token || '';
+                if (token) headers.Authorization = `Bearer ${token}`;
+            }
+        } else {
+            headers.apikey = apiKey;
+            const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+            url = `${baseUrl}${cleanEndpoint}`;
+        }
 
         console.log(`AURA: Fetching ${url}`);
         try {
@@ -162,9 +178,6 @@ class WhatsAppService {
         const { instanceName } = useStore.getState();
         const targetInstance = instanceOverride || instanceName;
         if (!targetInstance) return 'disconnected';
-
-        // Ensure socket is connected
-        if (!this.socket) this.connectSocket();
 
         try {
             const data = await this.request(`/instance/connectionState/${targetInstance}`);

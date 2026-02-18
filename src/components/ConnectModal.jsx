@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, RefreshCw, LogOut, QrCode, Plus, Trash2, CheckCircle2 } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { useStore } from '../store/useStore';
 import WhatsAppService from '../services/whatsapp';
 import {
@@ -12,8 +11,6 @@ import {
 
 const ConnectModal = ({ isOpen, onClose }) => {
     const {
-        apiUrl,
-        apiKey,
         whatsappChannels,
         activeWhatsAppChannelId,
         switchWhatsAppChannel,
@@ -33,7 +30,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
     const [qrCode, setQrCode] = useState(null);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState('checking');
-    const socketRef = useRef(null);
     const [instanceDraft, setInstanceDraft] = useState('');
     const [newChannelDraft, setNewChannelDraft] = useState('');
     const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
@@ -58,7 +54,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
     const stepOneDone = Boolean(String(activeChannel?.instanceName || '').trim());
 
-    const normalizeBaseUrl = (value) => String(value || '').trim().replace(/\/$/, '');
     const tenantPrefix = String(tenantSlug || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
     const stripTenantScope = useCallback((value = '') => {
         const raw = String(value || '').trim();
@@ -112,51 +107,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
         setQrCode(null);
         checkStatus();
     }, [isOpen, activeChannel?.id, activeChannel?.instanceName, activeChannel?.label, checkStatus, stripTenantScope]);
-
-    useEffect(() => {
-        if (!isOpen || !activeChannel?.instanceName || activeConnected) {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-            return;
-        }
-
-        const wsUrl = normalizeBaseUrl(apiUrl).replace('https://', 'wss://').replace('http://', 'ws://');
-        const expectedInstance = activeChannel.instanceName;
-
-        const nextSocket = io(wsUrl, {
-            transports: ['websocket'],
-            path: '/socket.io',
-            reconnection: true,
-            reconnectionAttempts: 5,
-        });
-
-        nextSocket.on('qrcode.updated', (payload) => {
-            const payloadInstance = payload?.instance || payload?.data?.instance;
-            if (payloadInstance && payloadInstance !== expectedInstance) return;
-            const nextQr = readQrFromPayload(payload?.data || payload);
-            if (nextQr) setQrCode(nextQr);
-        });
-
-        nextSocket.on('connection.update', (payload) => {
-            const payloadInstance = payload?.instance || payload?.data?.instance;
-            if (payloadInstance && payloadInstance !== expectedInstance) return;
-            const nextState = payload?.state || payload?.data?.state;
-            if (nextState === 'open') {
-                setStatus('open');
-                if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'open');
-                setQrCode(null);
-            }
-        });
-
-        socketRef.current = nextSocket;
-
-        return () => {
-            nextSocket.disconnect();
-            socketRef.current = null;
-        };
-    }, [isOpen, apiUrl, activeChannel?.id, activeChannel?.instanceName, activeConnected, setWhatsAppChannelStatus]);
 
     useEffect(() => {
         if (!isOpen || activeConnected || !activeChannel?.instanceName) return;
@@ -226,10 +176,6 @@ const ConnectModal = ({ isOpen, onClose }) => {
 
     const handleGenerateQr = async () => {
         if (!(await handleSaveInstance())) return;
-        if (!String(apiUrl || '').trim() || !String(apiKey || '').trim()) {
-            alert('Configure API URL e API Key antes de gerar o QR.');
-            return;
-        }
 
         setLoading(true);
         if (activeChannel?.id) setWhatsAppChannelStatus(activeChannel.id, 'connecting');
