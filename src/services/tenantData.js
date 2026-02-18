@@ -127,6 +127,45 @@ async function ensureConversation({ tenantId, contactId, channelId = null, chat 
     return data?.id || null;
 }
 
+async function upsertMessageRow(row) {
+    try {
+        const { error } = await supabase
+            .from('messages')
+            .upsert(row, { onConflict: 'tenant_id,channel_id,message_key' });
+        if (!error) return;
+
+        // Fallback for environments where partial unique index is not resolved by PostgREST conflict target.
+        const fallback = await supabase.from('messages').insert(row);
+        if (fallback.error) throw fallback.error;
+    } catch (error) {
+        console.error('AURA tenant message upsert error:', error);
+    }
+}
+
+async function persistLastChatMessage({ tenantId, chat, contactId, conversationId, channelId = null }) {
+    const last = chat?.lastMessage || null;
+    if (!last?.message) return;
+
+    const parsed = parseMessage(last);
+    const keyId = last?.key?.id ? String(last.key.id) : null;
+    const ts = Number(last?.messageTimestamp || chat?.messageTimestamp || 0);
+    const row = {
+        tenant_id: tenantId,
+        conversation_id: conversationId,
+        contact_id: contactId,
+        channel_id: isUuid(channelId) ? channelId : null,
+        message_key: keyId,
+        direction: last?.key?.fromMe ? 'outgoing' : 'incoming',
+        kind: parsed.kind,
+        body: parsed.body || null,
+        media_url: null,
+        raw_payload: last || {},
+        sent_at: ts ? new Date(ts * 1000).toISOString() : new Date().toISOString(),
+    };
+
+    await upsertMessageRow(row);
+}
+
 async function resolveChannelIdForChat({ tenantId, chat, channelsByInstance }) {
     if (isUuid(chat?.channelId)) return chat.channelId;
     const fromMap = channelsByInstance.get(String(chat?.sourceInstanceName || '').toLowerCase());
@@ -258,7 +297,16 @@ export async function persistChatsSnapshot({ tenantId, chats = [] }) {
             const channelId = await resolveChannelIdForChat({ tenantId, chat, channelsByInstance });
             const contact = await ensureContact({ tenantId, chat, channelId });
             if (!contact?.id) continue;
-            await ensureConversation({ tenantId, contactId: contact.id, channelId, chat });
+            const conversationId = await ensureConversation({ tenantId, contactId: contact.id, channelId, chat });
+            if (conversationId) {
+                await persistLastChatMessage({
+                    tenantId,
+                    chat,
+                    contactId: contact.id,
+                    conversationId,
+                    channelId,
+                });
+            }
         } catch (error) {
             console.error('AURA tenant persist chat error:', error);
         }
@@ -303,11 +351,8 @@ export async function persistThreadMessages({ tenantId, chat, messages = [] }) {
 
     if (rows.length === 0) return;
 
-    const { error } = await supabase
-        .from('messages')
-        .upsert(rows, { onConflict: 'tenant_id,channel_id,message_key' });
-    if (error) {
-        console.error('AURA tenant persist messages error:', error);
+    for (const row of rows) {
+        await upsertMessageRow(row);
     }
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import WhatsAppService from '../services/whatsapp';
 import { useStore } from '../store/useStore';
+import { persistThreadMessages } from '../services/tenantData';
 
 export function useChatComposer({
     activeChat,
@@ -16,6 +17,7 @@ export function useChatComposer({
 }) {
     const appendPendingOutgoing = useStore((state) => state.appendPendingOutgoing);
     const recordLearningEvent = useStore((state) => state.recordLearningEvent);
+    const tenantId = useStore((state) => state.tenantId);
     const [recording, setRecording] = useState(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -45,6 +47,34 @@ export function useChatComposer({
         if (mimeType.includes('mp4')) return 'm4a';
         return 'bin';
     };
+
+    const persistOutgoingEvent = useCallback(async ({ jid, text = '', response = null, kind = 'text' }) => {
+        if (!tenantId || !activeChat || !jid) return;
+        const synthetic = {
+            key: {
+                id: response?.key?.id || response?.id || `local-${Date.now()}`,
+                fromMe: true,
+                remoteJid: jid,
+            },
+            messageTimestamp: Math.floor(Date.now() / 1000),
+            message: kind === 'text'
+                ? { conversation: text || '' }
+                : kind === 'audio'
+                    ? { audioMessage: {} }
+                    : kind === 'image'
+                        ? { imageMessage: { caption: text || '' } }
+                        : kind === 'video'
+                            ? { videoMessage: { caption: text || '' } }
+                            : kind === 'document'
+                                ? { documentMessage: {} }
+                                : { conversation: text || '' },
+        };
+        await persistThreadMessages({
+            tenantId,
+            chat: activeChat,
+            messages: [synthetic],
+        });
+    }, [activeChat, tenantId]);
 
     const promptManualPhoneAndRetry = useCallback((jid, initialPhone, retryText, chatData) => {
         const initialDigits = String(initialPhone || '').replace(/\D/g, '');
@@ -124,6 +154,7 @@ export function useChatComposer({
                 try {
                     const response = await WhatsAppService.sendMedia(outboundJid, audioFile, '', true);
                     if (response && !response.error) {
+                        await persistOutgoingEvent({ jid: outboundJid, response, kind: 'audio' });
                         loadMessages();
                     } else {
                         const reason = response?.message || 'Falha ao enviar áudio.';
@@ -146,7 +177,7 @@ export function useChatComposer({
             console.error('Mic Access Error:', error);
             alert('❌ Erro ao acessar microfone. Verifique as permissões.');
         }
-    }, [loadMessages, outboundJid, recording, setSending]);
+    }, [loadMessages, outboundJid, persistOutgoingEvent, recording, setSending]);
 
     const handleSend = useCallback(async (e) => {
         if (e) e.preventDefault();
@@ -192,6 +223,7 @@ export function useChatComposer({
 
             if (res && !res.error) {
                 appendPendingOutgoing(jid, input, res);
+                await persistOutgoingEvent({ jid, text: finalText, response: res, kind: 'text' });
 
                 recordLearningEvent({
                     type: 'message_sent',
@@ -247,7 +279,7 @@ export function useChatComposer({
             openConfirm('Erro', `Erro inesperado: ${error.message}`);
         }
         setSending(false);
-    }, [activeChat, appendPendingOutgoing, input, loadMessages, openConfirm, outboundJid, promptManualPhoneAndRetry, recordLearningEvent, sending, setInput, setSending, suggestion]);
+    }, [activeChat, appendPendingOutgoing, input, loadMessages, openConfirm, outboundJid, persistOutgoingEvent, promptManualPhoneAndRetry, recordLearningEvent, sending, setInput, setSending, suggestion]);
 
     const useSuggestion = useCallback(() => {
         if (suggestion && !suggestion.includes('...')) {
@@ -269,6 +301,13 @@ export function useChatComposer({
                 setSending(true);
                 const res = await WhatsAppService.sendMedia(outboundJid, file, caption || '');
                 if (res) {
+                    const type = String(file?.type || '');
+                    const kind = type.startsWith('image/')
+                        ? 'image'
+                        : type.startsWith('video/')
+                            ? 'video'
+                            : 'document';
+                    await persistOutgoingEvent({ jid: outboundJid, text: caption || '', response: res, kind });
                     loadMessages();
                 } else {
                     console.error('Upload failed result:', res);
@@ -281,7 +320,7 @@ export function useChatComposer({
                 setSending(false);
             }
         });
-    }, [loadMessages, openConfirm, openPrompt, outboundJid, setSending, setShowAttachMenu]);
+    }, [loadMessages, openConfirm, openPrompt, outboundJid, persistOutgoingEvent, setSending, setShowAttachMenu]);
 
     // This now only handles the menu logic if needed, or can be removed if handled in UI
     const handleAttachmentMenuOpen = useCallback(() => {
