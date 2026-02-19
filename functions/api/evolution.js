@@ -37,7 +37,9 @@ async function assertAuthenticated({ request, env }) {
 function buildEvolutionUrl(baseUrl, path = '', search = '') {
     const cleanBase = String(baseUrl || '').trim().replace(/\/+$/, '');
     const cleanPath = String(path || '').trim().replace(/^\/+/, '');
-    const suffix = cleanPath ? `/${cleanPath}` : '';
+    // Backward compatibility: some old clients sent comma-separated path chunks.
+    const normalizedPath = cleanPath.includes('/') ? cleanPath : cleanPath.replace(/,+/g, '/');
+    const suffix = normalizedPath ? `/${normalizedPath}` : '';
     return `${cleanBase}${suffix}${search || ''}`;
 }
 

@@ -458,11 +458,14 @@ const App = () => {
   // Check WhatsApp connection status (only when authenticated)
   useEffect(() => {
     if (!isAuthenticated || !tenantBootstrapReady) return;
+    let pollCount = 0;
 
     const checkConn = async () => {
+      if (document.hidden) return;
+      pollCount += 1;
       const tenantSlug = useStore.getState().tenantSlug;
       let channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
-      if (tenantId) {
+      if (tenantId && pollCount % 4 === 1) {
         try {
           const remoteChannels = await loadTenantChannels(tenantId);
           const mapped = mapChannelsToStore(remoteChannels);
@@ -538,7 +541,7 @@ const App = () => {
       }
     };
     checkConn();
-    const itv = setInterval(checkConn, 30000);
+    const itv = setInterval(checkConn, 45000);
     return () => clearInterval(itv);
   }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
 

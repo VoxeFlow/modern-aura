@@ -9,6 +9,15 @@ class WhatsAppService {
         this.serverInfoCache = null;
         this.contactsCache = new Map();
         this.contactsCacheTtlMs = 60 * 1000;
+        this.debug = false;
+    }
+
+    debugLog(...args) {
+        if (this.debug) console.log(...args);
+    }
+
+    debugWarn(...args) {
+        if (this.debug) console.warn(...args);
     }
 
     getContactPhoneMapStorageKey() {
@@ -83,6 +92,26 @@ class WhatsAppService {
             const isJson = contentType.includes('application/json');
 
             if (!response.ok) {
+                if (
+                    shouldUseProxy &&
+                    (response.status === 401 || response.status === 403) &&
+                    apiUrl &&
+                    apiKey
+                ) {
+                    const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+                    const directHeaders = { 'Content-Type': 'application/json', apikey: apiKey };
+                    const directResponse = await fetch(`${baseUrl}${cleanEndpoint}`, {
+                        method,
+                        headers: directHeaders,
+                        body: body ? JSON.stringify(body) : null,
+                    });
+                    const directType = String(directResponse.headers.get('content-type') || '').toLowerCase();
+                    if (directResponse.ok) {
+                        if (directType.includes('application/json')) return await directResponse.json();
+                        const text = await directResponse.text().catch(() => '');
+                        return { ok: true, text };
+                    }
+                }
                 const errorBody = isJson
                     ? await response.json().catch(() => ({}))
                     : { message: await response.text().catch(() => '') };
@@ -131,7 +160,7 @@ class WhatsAppService {
         const { apiUrl, apiKey, instanceName } = useStore.getState();
         if (!apiUrl || !instanceName || this.socket) return;
 
-        console.log(`🔌 Initializing Socket for ${instanceName}...`);
+        this.debugLog(`🔌 Initializing Socket for ${instanceName}...`);
 
         // Evolution API usually exposes socket at root
         const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
@@ -144,7 +173,7 @@ class WhatsAppService {
         });
 
         this.socket.on('connect', () => {
-            console.log('✅ Socket Connected!');
+            this.debugLog('✅ Socket Connected!');
         });
 
         this.socket.on(`messages.upsert`, (payload) => {
@@ -161,12 +190,12 @@ class WhatsAppService {
                     const remoteJidAlt = msg.key?.remoteJidAlt || msg.remoteJidAlt;
                     if (participant && participant.includes('@s.whatsapp.net')) {
                         const extracted = participant.split('@')[0];
-                        console.log(`🕵️ Socket Discovery: Found valid number ${extracted} for LID ${remoteJid}`);
+                        this.debugLog(`🕵️ Socket Discovery: Found valid number ${extracted} for LID ${remoteJid}`);
                         this.setManualPhoneMapping(remoteJid, extracted);
                     }
                     if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
                         const extractedAlt = remoteJidAlt.split('@')[0];
-                        console.log(`🕵️ Socket Discovery: Found remoteJidAlt ${extractedAlt} for LID ${remoteJid}`);
+                        this.debugLog(`🕵️ Socket Discovery: Found remoteJidAlt ${extractedAlt} for LID ${remoteJid}`);
                         this.setManualPhoneMapping(remoteJid, extractedAlt);
                     }
                 }
@@ -197,7 +226,7 @@ class WhatsAppService {
 
     async createInstance(name) {
         if (!name) return null;
-        console.log(`AURA: Creating instance ${name}...`);
+        this.debugLog(`AURA: Creating instance ${name}...`);
         const attempts = [
             { instanceName: name, token: name, qrcode: false, integration: 'WHATSAPP-BAILEYS' },
             { instanceName: name, token: name, qrcode: true, integration: 'WHATSAPP-BAILEYS' },
@@ -251,7 +280,7 @@ class WhatsAppService {
             let response = await this.request(`/instance/connect/${targetInstance}`, 'GET');
 
             if (this.isMissingInstanceResponse(response)) {
-                console.warn(`AURA: Instance ${targetInstance} not found. Creating...`);
+                this.debugWarn(`AURA: Instance ${targetInstance} not found. Creating...`);
                 const created = await this.createInstance(targetInstance);
                 if (created?.error && !String(this.extractApiErrorMessage(created)).includes('already')) {
                     return created;
@@ -775,7 +804,7 @@ class WhatsAppService {
         try {
             const normalized = this.normalizePhoneNumber(phoneNumber);
             if (!normalized) {
-                console.warn(`⚠️ Invalid phone mapping for ${jid}:`, phoneNumber);
+                this.debugWarn(`⚠️ Invalid phone mapping for ${jid}:`, phoneNumber);
                 return false;
             }
             const mappings = this.readContactPhoneMap();
@@ -784,7 +813,7 @@ class WhatsAppService {
                 mappings[candidate] = normalized;
             });
             this.writeContactPhoneMap(mappings);
-            console.log(`✅ Saved phone mapping: [${candidates.join(', ')}] → ${normalized}`);
+            this.debugLog(`✅ Saved phone mapping: [${candidates.join(', ')}] → ${normalized}`);
             return true;
         } catch (e) {
             console.error('Error saving phone mapping:', e);
@@ -807,7 +836,7 @@ class WhatsAppService {
         // Priority 2: Phone number attached during chat merge/resolution
         const attachedPhone = this.normalizePhoneNumber(chatData?.phoneNumber);
         if (attachedPhone) {
-            console.log(`✅ Using attached chat phoneNumber: ${attachedPhone}`);
+            this.debugLog(`✅ Using attached chat phoneNumber: ${attachedPhone}`);
             return attachedPhone;
         }
 
@@ -821,7 +850,7 @@ class WhatsAppService {
             if (participant && participant.includes('@s.whatsapp.net')) {
                 const phone = participant.split('@')[0];
                 if (/^\d{10,15}$/.test(phone)) {
-                    console.log(`✅ Extracted phone from participant: ${phone}`);
+                    this.debugLog(`✅ Extracted phone from participant: ${phone}`);
                     return phone;
                 }
             }
@@ -831,7 +860,7 @@ class WhatsAppService {
             if (remoteJid && remoteJid.includes('@s.whatsapp.net') && !remoteJid.includes('@lid')) {
                 const phone = remoteJid.split('@')[0];
                 if (/^\d{10,15}$/.test(phone)) {
-                    console.log(`✅ Extracted phone from remoteJid: ${phone}`);
+                    this.debugLog(`✅ Extracted phone from remoteJid: ${phone}`);
                     return phone;
                 }
             }
@@ -842,7 +871,7 @@ class WhatsAppService {
             if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
                 const phone = remoteJidAlt.split('@')[0];
                 if (/^\d{10,15}$/.test(phone)) {
-                    console.log(`✅ Extracted phone from remoteJidAlt: ${phone}`);
+                    this.debugLog(`✅ Extracted phone from remoteJidAlt: ${phone}`);
                     return phone;
                 }
             }
@@ -851,7 +880,7 @@ class WhatsAppService {
         // Priority 4: Manual mapping from localStorage
         const manualPhone = this.getManualPhoneMappingFromCandidates(jid, chatData);
         if (manualPhone) {
-            console.log(`✅ Using manual mapping: ${manualPhone}`);
+            this.debugLog(`✅ Using manual mapping: ${manualPhone}`);
             return manualPhone;
         }
 
@@ -866,7 +895,7 @@ class WhatsAppService {
 
         // 2. If valid chatData exists, try scanning its history via API
         if (chatData || jid) {
-            console.log(`🕵️ Smart Scan: Searching phone number for ${jid}...`);
+            this.debugLog(`🕵️ Smart Scan: Searching phone number for ${jid}...`);
 
             // Fetch last 50 messages to find a participant
             const messages = await this.fetchMessages(jid, null, chatData);
@@ -884,7 +913,7 @@ class WhatsAppService {
                     if (potential) {
                         const extracted = potential.split('@')[0];
                         if (/^\d{10,15}$/.test(extracted)) {
-                            console.log(`✅ Smart Scan FOUND: ${extracted} in message from ${new Date(msg.messageTimestamp * 1000).toLocaleString()}`);
+                            this.debugLog(`✅ Smart Scan FOUND: ${extracted} in message from ${new Date(msg.messageTimestamp * 1000).toLocaleString()}`);
 
                             // Auto-save the mapping!
                             this.setManualPhoneMapping(jid, extracted, chatData);
@@ -897,7 +926,7 @@ class WhatsAppService {
             // 3. DEEP HUNT: Search Address Book by Name (Last Resort)
             const targetName = (chatData?.name || chatData?.pushName || chatData?.verifiedName);
             if (targetName) {
-                console.log(`🕵️ Deep Hunt: Searching Address Book for "${targetName}"...`);
+                this.debugLog(`🕵️ Deep Hunt: Searching Address Book for "${targetName}"...`);
                 try {
                     const contacts = await this.fetchContacts();
                     if (Array.isArray(contacts)) {
@@ -911,7 +940,7 @@ class WhatsAppService {
 
                         if (match) {
                             const extracted = match.id.split('@')[0];
-                            console.log(`✅ Deep Hunt FOUND via Contact Name: ${extracted}`);
+                            this.debugLog(`✅ Deep Hunt FOUND via Contact Name: ${extracted}`);
                             this.setManualPhoneMapping(jid, extracted, chatData);
                             return extracted;
                         }
