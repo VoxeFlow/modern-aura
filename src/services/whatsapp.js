@@ -68,11 +68,16 @@ class WhatsAppService {
         let url = '';
         if (shouldUseProxy) {
             url = `/api/evolution?path=${encodeURIComponent(cleanPath)}`;
-            if (isSupabaseEnabled) {
+            const legacyToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : '';
+            const monstroToken = typeof window !== 'undefined' ? localStorage.getItem('monstro_auth_token') : '';
+            let bearerToken = monstroToken || legacyToken || '';
+
+            if (!bearerToken && isSupabaseEnabled) {
                 const { data } = await supabase.auth.getSession();
-                const token = data?.session?.access_token || '';
-                if (token) headers.Authorization = `Bearer ${token}`;
+                bearerToken = data?.session?.access_token || '';
             }
+
+            if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
         } else {
             headers.apikey = apiKey;
             const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
