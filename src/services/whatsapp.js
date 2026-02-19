@@ -99,7 +99,6 @@ class WhatsAppService {
             if (!response.ok) {
                 if (
                     shouldUseProxy &&
-                    (response.status === 401 || response.status === 403) &&
                     apiUrl &&
                     apiKey
                 ) {
