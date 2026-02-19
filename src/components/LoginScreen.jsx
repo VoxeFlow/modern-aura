@@ -2,6 +2,7 @@ import { useState } from 'react';
 import logoDark from '../assets/logo-dark.png';
 import './LoginScreen.css';
 import { isSupabaseEnabled, supabase } from '../services/supabase';
+import { claimUserSession } from '../services/sessionLock';
 
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -31,6 +32,13 @@ export default function LoginScreen({ onLogin }) {
                     password,
                 });
                 if (!signInError) {
+                    const lockResult = await claimUserSession();
+                    if (!lockResult?.ok) {
+                        await supabase.auth.signOut();
+                        setError('Esta conta já está ativa em outro dispositivo. Encerre a sessão anterior e tente novamente.');
+                        setPassword('');
+                        return;
+                    }
                     // Invisible master mode: enabled by credentials, but only after a real Supabase login.
                     const emailOk = cleanEmail === masterEmail;
                     const passOk = masterPassword && password === masterPassword;

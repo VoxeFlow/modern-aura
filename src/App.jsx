@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatList from './components/ChatList';
 import ChatArea from './components/ChatArea';
@@ -13,6 +13,7 @@ import { useStore } from './store/useStore';
 import WhatsAppService from './services/whatsapp';
 import { useKnowledgeLoop } from './hooks/useKnowledgeLoop';
 import { isSupabaseEnabled, supabase } from './services/supabase';
+import { claimUserSession, heartbeatUserSession, releaseUserSession } from './services/sessionLock';
 import { resolveTenantContext } from './services/tenant';
 import { loadTenantSettings, upsertTenantSettings } from './services/tenantSettings';
 import {
@@ -69,6 +70,7 @@ const App = () => {
   const [tenantBootstrapReady, setTenantBootstrapReady] = useState(false);
   const [tenantOnboardingCompleted, setTenantOnboardingCompleted] = useState(true);
   const [envFatal, setEnvFatal] = useState('');
+  const [sessionGuardError, setSessionGuardError] = useState('');
 
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
@@ -546,7 +548,14 @@ const App = () => {
   }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
 
   // AUTH: Handle logout
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async ({ skipRelease = false } = {}) => {
+    if (isSupabaseEnabled && !skipRelease) {
+      try {
+        await releaseUserSession();
+      } catch (error) {
+        console.error('AURA session release error:', error);
+      }
+    }
     if (isSupabaseEnabled) {
       await supabase.auth.signOut();
     }
@@ -555,7 +564,49 @@ const App = () => {
     localStorage.removeItem('aura_master_mode');
     localStorage.removeItem('aura_tenant_id');
     setIsAuthenticated(false);
-  };
+  }, []);
+
+  // SESSION GUARD: allow only one active device per account.
+  useEffect(() => {
+    if (!isAuthenticated || !isSupabaseEnabled || envFatal) return;
+    setSessionGuardError('');
+    let cancelled = false;
+    let intervalId = null;
+
+    const forceLogoutForSessionConflict = async () => {
+      if (cancelled) return;
+      const message = 'Esta conta está ativa em outro dispositivo. Por segurança, encerramos esta sessão.';
+      setSessionGuardError(message);
+      alert(message);
+      await handleLogout({ skipRelease: true });
+    };
+
+    const bootstrapClaim = async () => {
+      const claim = await claimUserSession();
+      if (!claim?.ok) {
+        await forceLogoutForSessionConflict();
+        return;
+      }
+
+      const pulse = async () => {
+        if (document.hidden) return;
+        const beat = await heartbeatUserSession();
+        if (!beat?.ok) {
+          await forceLogoutForSessionConflict();
+        }
+      };
+
+      intervalId = setInterval(pulse, 45000);
+      await pulse();
+    };
+
+    bootstrapClaim();
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isAuthenticated, envFatal, handleLogout]);
 
   const dismissWelcome = async (openBriefing = false) => {
     if (tenantId) {
@@ -598,6 +649,10 @@ const App = () => {
   }
 
   if (!tenantBootstrapReady) {
+    return null;
+  }
+
+  if (sessionGuardError) {
     return null;
   }
 
