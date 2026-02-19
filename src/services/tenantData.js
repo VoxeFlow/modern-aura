@@ -25,6 +25,10 @@ function slugify(value = '') {
         .replace(/^-+|-+$/g, '');
 }
 
+function isUniqueViolation(error) {
+    return String(error?.code || '') === '23505';
+}
+
 export function scopeInstanceNameByTenant(tenantSlug = '', instanceName = '') {
     const cleanInstance = slugify(instanceName);
     if (!cleanInstance) return '';
@@ -97,13 +101,59 @@ async function ensureContact({ tenantId, chat, channelId = null }) {
         },
     };
 
-    const { data, error } = await supabase
+    const insertResult = await supabase
         .from('contacts')
-        .upsert(payload, { onConflict: 'tenant_id,jid' })
+        .insert(payload)
         .select('id,jid')
         .single();
-    if (error) throw error;
-    return data;
+
+    if (!insertResult.error) {
+        return insertResult.data;
+    }
+
+    if (!isUniqueViolation(insertResult.error)) {
+        throw insertResult.error;
+    }
+
+    const existingResult = await supabase
+        .from('contacts')
+        .select('id,jid')
+        .eq('tenant_id', tenantId)
+        .eq('jid', jid)
+        .maybeSingle();
+
+    if (existingResult.error) {
+        throw existingResult.error;
+    }
+
+    if (!existingResult.data?.id) {
+        throw insertResult.error;
+    }
+
+    const updatePayload = {
+        channel_id: payload.channel_id,
+        external_id: payload.external_id,
+        phone_e164: payload.phone_e164,
+        display_name: payload.display_name,
+        avatar_url: payload.avatar_url,
+        source: payload.source,
+        last_seen_at: payload.last_seen_at,
+        metadata: payload.metadata,
+    };
+
+    const updateResult = await supabase
+        .from('contacts')
+        .update(updatePayload)
+        .eq('id', existingResult.data.id)
+        .select('id,jid')
+        .single();
+
+    if (updateResult.error) {
+        console.error('AURA tenant contact update after conflict failed:', updateResult.error);
+        return existingResult.data;
+    }
+
+    return updateResult.data;
 }
 
 async function ensureConversation({ tenantId, contactId, channelId = null, chat }) {
@@ -129,16 +179,13 @@ async function ensureConversation({ tenantId, contactId, channelId = null, chat 
 
 async function upsertMessageRow(row) {
     try {
-        const { error } = await supabase
-            .from('messages')
-            .upsert(row, { onConflict: 'tenant_id,channel_id,message_key' });
-        if (!error) return;
-
-        // Fallback for environments where partial unique index is not resolved by PostgREST conflict target.
-        const fallback = await supabase.from('messages').insert(row);
-        if (fallback.error) throw fallback.error;
+        const canDeduplicate = Boolean(row?.tenant_id && row?.channel_id && row?.message_key);
+        const insertResult = await supabase.from('messages').insert(row);
+        if (!insertResult.error) return;
+        if (canDeduplicate && isUniqueViolation(insertResult.error)) return;
+        throw insertResult.error;
     } catch (error) {
-        console.error('AURA tenant message upsert error:', error);
+        console.error('AURA tenant message persist error:', error);
     }
 }
 

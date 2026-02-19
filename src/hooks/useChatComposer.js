@@ -223,7 +223,9 @@ export function useChatComposer({
 
             if (res && !res.error) {
                 appendPendingOutgoing(jid, input, res);
-                await persistOutgoingEvent({ jid, text: finalText, response: res, kind: 'text' });
+                await persistOutgoingEvent({ jid, text: finalText, response: res, kind: 'text' }).catch((error) => {
+                    console.error('AURA persist outgoing sync error:', error);
+                });
 
                 recordLearningEvent({
                     type: 'message_sent',
