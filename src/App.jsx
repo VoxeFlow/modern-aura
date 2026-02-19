@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatList from './components/ChatList';
 import ChatArea from './components/ChatArea';
@@ -30,6 +30,8 @@ import {
 } from './services/tenantData';
 
 const App = () => {
+  const MAX_VISIBLE_CHATS = 220;
+  const MAX_PERSISTED_CHATS = 120;
   const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
   useKnowledgeLoop(); // AURA v11: Dynamic Knowledge Loop
   const {
@@ -71,6 +73,10 @@ const App = () => {
   const [tenantOnboardingCompleted, setTenantOnboardingCompleted] = useState(true);
   const [envFatal, setEnvFatal] = useState('');
   const [sessionGuardError, setSessionGuardError] = useState('');
+  const channelsRef = useRef([]);
+  const pollInFlightRef = useRef(false);
+  const lastChatsSignatureRef = useRef('');
+  const lastSnapshotAtRef = useRef(0);
 
   // AUTH: Check Supabase session (preferred) or local legacy token fallback.
   useEffect(() => {
@@ -407,6 +413,10 @@ const App = () => {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    channelsRef.current = Array.isArray(whatsappChannels) ? whatsappChannels : [];
+  }, [whatsappChannels]);
+
   // PLAN GUARD: Lite has no CRM
   useEffect(() => {
     if (currentView === 'crm' && !hasFeature('crm_basic')) {
@@ -462,18 +472,50 @@ const App = () => {
     if (!isAuthenticated || !tenantBootstrapReady) return;
     let pollCount = 0;
 
-    const checkConn = async () => {
-      if (document.hidden) return;
+    const channelsAreEqual = (a = [], b = []) => {
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        const left = a[i] || {};
+        const right = b[i] || {};
+        if (
+          String(left.id || '') !== String(right.id || '')
+          || String(left.label || '') !== String(right.label || '')
+          || String(left.instanceName || '') !== String(right.instanceName || '')
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const buildChatsSignature = (list = []) => {
+      return (Array.isArray(list) ? list : [])
+        .slice(0, 120)
+        .map((chat) => {
+          const id = String(chat?.chatKey || chat?.id || chat?.remoteJid || chat?.jid || '');
+          const ts = Number(chat?.lastMessage?.messageTimestamp || chat?.messageTimestamp || chat?.conversationTimestamp || 0);
+          return `${id}:${ts}`;
+        })
+        .join('|');
+    };
+
+    const checkConn = async ({ force = false } = {}) => {
+      if (!force && document.hidden) return;
+      if (pollInFlightRef.current) return;
+
+      pollInFlightRef.current = true;
       pollCount += 1;
       const tenantSlug = useStore.getState().tenantSlug;
-      let channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
-      if (tenantId && pollCount % 4 === 1) {
+      let channels = Array.isArray(channelsRef.current) ? channelsRef.current : [];
+      if (tenantId && (force || pollCount % 4 === 1)) {
         try {
           const remoteChannels = await loadTenantChannels(tenantId);
           const mapped = mapChannelsToStore(remoteChannels);
-          if (Array.isArray(mapped) && mapped.length > 0) {
+          if (Array.isArray(mapped) && mapped.length > 0 && !channelsAreEqual(mapped, channels)) {
             setWhatsAppChannels(mapped);
             channels = mapped;
+            channelsRef.current = mapped;
           }
         } catch (error) {
           console.error('AURA channel refresh error:', error);
@@ -488,13 +530,17 @@ const App = () => {
       if (connectedChannels.length === 0) {
         setIsConnected(false);
         setChats([]);
+        lastChatsSignatureRef.current = '';
         return;
       }
 
       const statusRows = await Promise.all(
         connectedChannels.map(async (channel) => {
           const connectionState = await WhatsAppService.checkConnection(channel.instanceName);
-          setWhatsAppChannelStatus(channel.id, connectionState);
+          const currentStatus = useStore.getState().whatsappChannelStatus?.[channel.id] || 'disconnected';
+          if (currentStatus !== connectionState) {
+            setWhatsAppChannelStatus(channel.id, connectionState);
+          }
           return { channel, connectionState };
         })
       );
@@ -506,14 +552,22 @@ const App = () => {
         if (tenantId) {
           try {
             const summaryChats = await loadConversationSummaries(tenantId);
-            setChats(summaryChats);
+            const next = Array.isArray(summaryChats) ? summaryChats : [];
+            const signature = buildChatsSignature(next);
+            if (signature !== lastChatsSignatureRef.current) {
+              setChats(next);
+              lastChatsSignatureRef.current = signature;
+            }
           } catch (error) {
             console.error('AURA: offline inbox load error', error);
             setChats([]);
+            lastChatsSignatureRef.current = '';
           }
         } else {
           setChats([]);
+          lastChatsSignatureRef.current = '';
         }
+        pollInFlightRef.current = false;
         return;
       }
 
@@ -530,22 +584,49 @@ const App = () => {
         const tsA = a?.lastMessage?.messageTimestamp || a?.messageTimestamp || a?.conversationTimestamp || 0;
         const tsB = b?.lastMessage?.messageTimestamp || b?.messageTimestamp || b?.conversationTimestamp || 0;
         return tsB - tsA;
-      });
+      }).slice(0, MAX_VISIBLE_CHATS);
 
-      setChats(merged);
+      const signature = buildChatsSignature(merged);
+      const shouldUpdateChats = signature !== lastChatsSignatureRef.current;
+      if (shouldUpdateChats) {
+        setChats(merged);
+        lastChatsSignatureRef.current = signature;
+      }
+
       if (tenantId) {
-        persistChatsSnapshot({ tenantId, chats: merged }).catch((error) => {
-          console.error('AURA: tenant chat snapshot sync failed', error);
-        });
-        loadLeadTagMap(tenantId)
-          .then((leadMap) => setChatTags(leadMap))
-          .catch((error) => console.error('AURA: lead map refresh failed', error));
+        const now = Date.now();
+        const shouldPersistSnapshot = shouldUpdateChats || (now - lastSnapshotAtRef.current) > 3 * 60 * 1000;
+        if (shouldPersistSnapshot) {
+          lastSnapshotAtRef.current = now;
+          persistChatsSnapshot({ tenantId, chats: merged.slice(0, MAX_PERSISTED_CHATS) }).catch((error) => {
+            console.error('AURA: tenant chat snapshot sync failed', error);
+          });
+          loadLeadTagMap(tenantId)
+            .then((leadMap) => setChatTags(leadMap))
+            .catch((error) => console.error('AURA: lead map refresh failed', error));
+        }
+      }
+
+      pollInFlightRef.current = false;
+    };
+    const safeCheck = async (options = {}) => {
+      try {
+        await checkConn(options);
+      } catch (error) {
+        console.error('AURA connection poll error:', error);
+      } finally {
+        pollInFlightRef.current = false;
       }
     };
-    checkConn();
-    const itv = setInterval(checkConn, 45000);
-    return () => clearInterval(itv);
-  }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, whatsappChannels, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
+    safeCheck();
+    const itv = setInterval(() => safeCheck(), 45000);
+    const onManualRefresh = () => safeCheck({ force: true });
+    window.addEventListener('aura:refresh-inbox', onManualRefresh);
+    return () => {
+      clearInterval(itv);
+      window.removeEventListener('aura:refresh-inbox', onManualRefresh);
+    };
+  }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
 
   // AUTH: Handle logout
   const handleLogout = useCallback(async ({ skipRelease = false } = {}) => {

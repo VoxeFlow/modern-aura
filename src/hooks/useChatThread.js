@@ -9,7 +9,19 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
     const activeJidRef = useRef(null);
     const isFirstLoadRef = useRef(true);
     const inFlightRef = useRef(false);
+    const lastSignatureRef = useRef('');
     const tenantId = useStore((state) => state.tenantId);
+
+    const buildSignature = (items = []) => {
+        return (Array.isArray(items) ? items : [])
+            .slice(0, 100)
+            .map((item) => {
+                const id = String(item?.key?.id || item?.id || item?.messageTimestamp || '');
+                const ts = Number(item?.messageTimestamp || 0);
+                return `${id}:${ts}`;
+            })
+            .join('|');
+    };
 
     const loadMessages = useCallback(async () => {
         const jid = activeChat?.chatJid || activeChat?.sendTargetJid || activeChat?.remoteJid || activeChat?.jid || activeChat?.id;
@@ -27,9 +39,14 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
                 sourceInstance,
                 { limit: 120 }
             );
+            const signature = buildSignature(data || []);
+            const hasChanged = signature !== lastSignatureRef.current;
             if (activeJidRef.current === (activeChat?.id || jid)) {
-                setMessages(jid, data || []);
-                if (tenantId) {
+                if (hasChanged) {
+                    setMessages(jid, data || []);
+                    lastSignatureRef.current = signature;
+                }
+                if (tenantId && hasChanged) {
                     persistThreadMessages({
                         tenantId,
                         chat: activeChat,
@@ -58,6 +75,7 @@ export function useChatThread({ activeChat, messages, setMessages, clearMessages
         const jid = activeChat?.id || activeChat?.chatJid;
         activeJidRef.current = jid;
         isFirstLoadRef.current = true;
+        lastSignatureRef.current = '';
         clearMessages();
 
         if (!jid) return;

@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Search, RefreshCw, Menu } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import WhatsAppService from '../services/whatsapp';
 import { useArchivedChats } from '../hooks/useArchivedChats';
 import { getChatDisplayName, getChatJid, getChatTimestampMs } from '../utils/chatList';
 import ChatListItem from './ChatListItem';
-import { isScopedInstanceName, loadConversationSummaries, loadLeadTagMap, persistChatsSnapshot } from '../services/tenantData';
+import { loadConversationSummaries, loadLeadTagMap } from '../services/tenantData';
 
 const ChatList = ({ onOpenMenu }) => {
-    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, setWhatsAppChannelStatus, switchWhatsAppChannel, tenantId, tenantSlug, setChatTags } = useStore();
+    const { chats, setChats, activeChat, setActiveChat, isConnected, whatsappChannels, switchWhatsAppChannel, tenantId, setChatTags } = useStore();
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [channelFilter, setChannelFilter] = useState('all');
@@ -30,48 +29,7 @@ const ChatList = ({ onOpenMenu }) => {
                     console.error('AURA tenant inbox refresh error:', error);
                 }
             }
-
-            const channels = Array.isArray(whatsappChannels) ? whatsappChannels : [];
-            const connectedChannels = channels.filter((channel) => {
-                const instance = String(channel.instanceName || '').trim();
-                if (!instance) return false;
-                return isScopedInstanceName(tenantSlug, instance);
-            });
-            if (connectedChannels.length === 0) {
-                if (!tenantId) setChats([]);
-                return;
-            }
-
-            const statusRows = await Promise.all(
-                connectedChannels.map(async (channel) => {
-                    const connectionState = await WhatsAppService.checkConnection(channel.instanceName);
-                    setWhatsAppChannelStatus(channel.id, connectionState);
-                    return { channel, connectionState };
-                })
-            );
-
-            const openRows = statusRows.filter((row) => row.connectionState === 'open');
-            if (openRows.length === 0) {
-                if (!tenantId) setChats([]);
-                return;
-            }
-
-            const chatsByChannel = await Promise.all(
-                openRows.map(({ channel }) =>
-                    WhatsAppService.fetchChats(channel.instanceName, {
-                        channelId: channel.id,
-                        channelLabel: channel.label,
-                    })
-                )
-            );
-
-            const merged = chatsByChannel.flat().sort((a, b) => getChatTimestampMs(b) - getChatTimestampMs(a));
-            setChats(merged);
-            if (tenantId) {
-                persistChatsSnapshot({ tenantId, chats: merged }).catch((error) => {
-                    console.error('AURA tenant persist snapshot error:', error);
-                });
-            }
+            window.dispatchEvent(new CustomEvent('aura:refresh-inbox'));
         } catch (e) {
             console.error("AURA ChatList Error:", e);
         } finally {
@@ -86,8 +44,8 @@ const ChatList = ({ onOpenMenu }) => {
         setActiveChat(chat);
     };
 
-    const filtered = (Array.isArray(chats) ? chats : [])
-        .filter(c => {
+    const filtered = useMemo(() => (Array.isArray(chats) ? chats : [])
+        .filter((c) => {
             const jid = getChatJid(c);
             // Exclude archived chats from main list
             if (archivedChatIds.includes(jid)) return false;
@@ -99,7 +57,7 @@ const ChatList = ({ onOpenMenu }) => {
             const term = String(searchTerm || "").toLowerCase().trim();
             return name.includes(term) || jidStr.includes(term);
         })
-        .sort((a, b) => getChatTimestampMs(b) - getChatTimestampMs(a));
+        .sort((a, b) => getChatTimestampMs(b) - getChatTimestampMs(a)), [archivedChatIds, channelFilter, chats, searchTerm]);
 
     return (
         <div className="chat-list-container glass-panel">
