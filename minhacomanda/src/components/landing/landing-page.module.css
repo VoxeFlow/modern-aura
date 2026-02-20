@@ -1,0 +1,564 @@
+.shell {
+  position: relative;
+  min-height: 100vh;
+  padding: 1rem;
+  overflow: hidden;
+  color: #112d28;
+}
+
+.backdropGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(420px 280px at var(--mx, 52%) var(--my, 26%), rgba(12, 176, 136, 0.2), transparent 70%),
+    radial-gradient(300px 280px at 12% 80%, rgba(255, 170, 59, 0.16), transparent 68%),
+    radial-gradient(320px 300px at 88% 8%, rgba(52, 120, 255, 0.14), transparent 72%);
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 auto;
+  max-width: 1100px;
+}
+
+.overline {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #3f6f66;
+}
+
+.title {
+  margin: 0.2rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.loginCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 45, 40, 0.24);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.55rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition: transform 0.22s ease;
+}
+
+.loginCta:hover {
+  transform: translateY(-2px);
+}
+
+.hero {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 1.2rem;
+  margin: 1rem auto 0;
+  max-width: 1100px;
+}
+
+.copyColumn,
+.comandaColumn {
+  border-radius: 26px;
+  border: 1px solid rgba(17, 45, 40, 0.15);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 16px 46px rgba(17, 45, 40, 0.13);
+  backdrop-filter: blur(7px);
+}
+
+.copyColumn {
+  padding: 1.2rem;
+}
+
+.badge {
+  margin: 0;
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 45, 40, 0.2);
+  padding: 0.32rem 0.68rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #25564d;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.headline {
+  margin: 0.8rem 0 0;
+  font-size: clamp(1.7rem, 6vw, 2.85rem);
+  line-height: 1.08;
+}
+
+.description {
+  margin: 0.9rem 0 0;
+  font-size: 0.98rem;
+  color: #355f57;
+  max-width: 54ch;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.62rem;
+  margin-top: 1rem;
+}
+
+.primaryCta,
+.secondaryCta {
+  border-radius: 999px;
+  padding: 0.62rem 0.98rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.primaryCta {
+  color: #fff;
+  background: linear-gradient(135deg, #0a7e68, #2a9f84);
+  box-shadow: 0 8px 20px rgba(10, 126, 104, 0.32);
+}
+
+.secondaryCta {
+  border: 1px solid rgba(17, 45, 40, 0.26);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.metricGrid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metricCard {
+  border-radius: 14px;
+  border: 1px solid rgba(17, 45, 40, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.58rem;
+}
+
+.metricCard span {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #47726a;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.96rem;
+}
+
+.comandaColumn {
+  padding: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.comandaCard {
+  position: relative;
+  border-radius: 18px;
+  border: 1px dashed rgba(17, 45, 40, 0.34);
+  background: linear-gradient(180deg, #fffdf7, #fffaf1);
+  padding: 0.85rem;
+  animation: ticketLift 0.7s ease;
+}
+
+.comandaCard::before,
+.comandaCard::after {
+  content: "";
+  position: absolute;
+  top: 46%;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #f5f8ff;
+}
+
+.comandaCard::before {
+  left: -8px;
+}
+
+.comandaCard::after {
+  right: -8px;
+}
+
+.comandaHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.comandaLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: #4e766e;
+}
+
+.nickInput {
+  margin-top: 0.26rem;
+  width: 100%;
+  min-width: 146px;
+  border: 1px solid rgba(17, 45, 40, 0.24);
+  border-radius: 10px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.84rem;
+  background: #fff;
+}
+
+.nickInput:focus {
+  outline: none;
+  border-color: #2a9f84;
+}
+
+.livePill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(42, 159, 132, 0.18);
+  color: #0a7e68;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.34rem 0.56rem;
+  text-transform: uppercase;
+  animation: pulse 2.2s ease infinite;
+}
+
+.statusRail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.statusStep {
+  border-radius: 9px;
+  border: 1px solid rgba(17, 45, 40, 0.16);
+  padding: 0.36rem 0.45rem;
+  font-size: 0.72rem;
+  color: #4f746d;
+  transition: all 0.24s ease;
+}
+
+.statusStepActive {
+  border-color: #0a7e68;
+  background: rgba(10, 126, 104, 0.14);
+  color: #084a3d;
+  transform: translateY(-1px);
+}
+
+.itemList {
+  margin-top: 0.7rem;
+  border-top: 1px dashed rgba(17, 45, 40, 0.18);
+  border-bottom: 1px dashed rgba(17, 45, 40, 0.18);
+  padding: 0.4rem 0;
+  display: grid;
+  gap: 0.35rem;
+  min-height: 104px;
+}
+
+.empty {
+  margin: 0;
+  align-self: center;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6a8d87;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  animation: popIn 0.24s ease;
+}
+
+.itemRow p {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.itemRow small {
+  font-size: 0.73rem;
+  color: #5b837b;
+}
+
+.qtyControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.qtyControl button {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(17, 45, 40, 0.26);
+  background: #fff;
+  cursor: pointer;
+}
+
+.qtyControl span {
+  min-width: 18px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.quickAdd {
+  margin-top: 0.68rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.quickAdd button {
+  border-radius: 999px;
+  border: 1px solid rgba(17, 45, 40, 0.18);
+  background: #fff;
+  color: #18433b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.28rem 0.58rem;
+  transition: transform 0.2s ease;
+}
+
+.quickAdd button:hover {
+  transform: translateY(-1px);
+}
+
+.totalRow {
+  margin-top: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.87rem;
+}
+
+.totalRow strong {
+  font-size: 1rem;
+}
+
+.actionRow {
+  margin-top: 0.56rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.callBtn,
+.pixBtn,
+.copyBtn {
+  border: none;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.52rem 0.62rem;
+  cursor: pointer;
+}
+
+.callBtn {
+  color: #fff;
+  background: linear-gradient(135deg, #0b7863, #0f9d7c);
+}
+
+.pixBtn {
+  color: #0f2c28;
+  background: #f0f7f4;
+  border: 1px solid rgba(17, 45, 40, 0.2);
+}
+
+.feedback {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: #0d6b57;
+}
+
+.pixPanel {
+  margin-top: 0.56rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 45, 40, 0.18);
+  background: #fff;
+  padding: 0.56rem;
+  display: grid;
+  gap: 0.5rem;
+  animation: reveal 0.24s ease;
+}
+
+.qrMock {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(17, 45, 40, 0.22);
+  background:
+    linear-gradient(90deg, #0f2f2a 8px, transparent 8px) 0 0 / 22px 22px,
+    linear-gradient(#0f2f2a 8px, transparent 8px) 0 0 / 22px 22px,
+    linear-gradient(135deg, #fff, #f4faf8);
+  position: relative;
+  overflow: hidden;
+}
+
+.qrMock div {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(130deg, transparent 36%, rgba(255, 255, 255, 0.5) 50%, transparent 64%);
+  animation: shimmer 2s linear infinite;
+}
+
+.pixCode {
+  width: 100%;
+  min-height: 74px;
+  resize: none;
+  border-radius: 10px;
+  border: 1px solid rgba(17, 45, 40, 0.2);
+  background: #f9fffd;
+  padding: 0.4rem;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.64rem;
+}
+
+.copyBtn {
+  color: #fff;
+  background: #0e7e69;
+}
+
+.foot {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #6c8f88;
+}
+
+.qrCard {
+  border-radius: 14px;
+  border: 1px solid rgba(17, 45, 40, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.qrCard p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #3d6961;
+}
+
+.scanFrame {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid rgba(17, 45, 40, 0.2);
+  background: linear-gradient(180deg, #f9f8ff, #f2fbff);
+  min-height: 68px;
+  overflow: hidden;
+}
+
+.scanLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #2ba08a, transparent);
+  animation: scan 2.2s linear infinite;
+}
+
+@media (min-width: 940px) {
+  .shell {
+    padding: 1.5rem;
+  }
+
+  .hero {
+    grid-template-columns: 1.02fr 0.98fr;
+    align-items: start;
+    margin-top: 1.25rem;
+  }
+
+  .copyColumn,
+  .comandaColumn {
+    padding: 1.4rem;
+  }
+
+  .comandaCard {
+    padding: 1rem;
+  }
+
+  .statusRail {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@keyframes ticketLift {
+  from {
+    opacity: 0;
+    transform: translateY(12px) rotate(-1.2deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(42, 159, 132, 0.42);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(42, 159, 132, 0);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-60%);
+  }
+  to {
+    transform: translateX(60%);
+  }
+}
+
+@keyframes scan {
+  from {
+    top: -4px;
+  }
+  to {
+    top: calc(100% + 4px);
+  }
+}

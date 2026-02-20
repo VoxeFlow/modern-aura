@@ -1,3 +1,17 @@
-name = "modern-aura"
+name = "o-monstro-system"
+compatibility_date = "2024-02-08"
 pages_build_output_dir = "dist"
-compatibility_date = "2024-09-23"
+
+
+[[d1_databases]]
+binding = "DB" # Nome da variável no código (env.DB)
+database_name = "monstro-db"
+database_id = "9b9b5e16-8bdb-4893-b81d-3f2f05d8ef46"
+
+
+[vars]
+VITE_API_URL = "https://api.voxeflow.com"
+VITE_API_KEY = "Beatriz@CB650"
+VITE_SUPABASE_URL = "https://placeholder" # Fallback if needed, but app seems to rely on VITE_API_URL for evolution
+EVOLUTION_API_URL = "https://api.voxeflow.com" # Explicitly match evolution expectation logic
+EVOLUTION_API_KEY = "Beatriz@CB650"

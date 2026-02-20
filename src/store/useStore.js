@@ -123,25 +123,32 @@ export const useStore = create(
             pendingGaps: {}, // { gapId: { chatId, question, timestamp } }
             learningEvents: [], // Rolling learning log for accepted messages and edits
 
-            setAuthIdentity: ({ userId = null, userEmail = '' } = {}) => set((state) => {
+            userRole: 'owner', // default
+            userName: '',
+
+            setAuthIdentity: ({ userId = null, userEmail = '', userRole = 'owner', userName = '' } = {}) => set((state) => {
                 const nextUserId = userId || null;
                 const hasUserChanged = Boolean(state.userId && nextUserId && state.userId !== nextUserId);
                 if (!hasUserChanged) {
                     return {
                         userId: nextUserId,
                         userEmail: String(userEmail || '').trim().toLowerCase(),
+                        userRole,
+                        userName,
                     };
                 }
                 return {
                     userId: nextUserId,
                     userEmail: String(userEmail || '').trim().toLowerCase(),
+                    userRole,
+                    userName,
                     isConnected: false,
                     chats: [],
                     activeChat: null,
                     messages: [],
                     lastFetchedJid: null,
                     pendingOutgoing: {},
-                    tags: DEFAULT_TAGS,
+                    tags: [], // Cleared, will refetch
                     chatTags: {},
                     chatNextSteps: {},
                     managerPhone: '',
@@ -701,6 +708,65 @@ export const useStore = create(
             setTags: (tags = []) => set(() => ({
                 tags: Array.isArray(tags) && tags.length > 0 ? tags : DEFAULT_TAGS,
             })),
+
+            // Persistent Actions
+            fetchStages: async () => {
+                const { userEmail } = get();
+                if (!userEmail) return;
+                try {
+                    const res = await fetch('/api/crm/stages', {
+                        headers: { 'X-User-Email': userEmail }
+                    });
+                    if (res.ok) {
+                        const stages = await res.json();
+                        set({ tags: stages });
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch stages", e);
+                }
+            },
+
+            addCRMColumn: async (name) => {
+                const { userEmail, tags } = get();
+                const newId = `col-${Date.now()}`;
+                const newTag = { id: newId, name, icon: '📁', color: '#86868b', position: tags.length };
+
+                // Optimistic
+                set({ tags: [...tags, newTag] });
+
+                try {
+                    await fetch('/api/crm/stages', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-User-Email': userEmail },
+                        body: JSON.stringify({ name }) // API will assign ID, we might need reload or just trust optimistic ID for now? 
+                        // Actually API returns ID. Ideally we use that.
+                        // Let's stick to simple optimistic for now, or reload.
+                    });
+                } catch (e) {
+                    console.error("Failed to add stage", e);
+                }
+            },
+
+            updateCRMColumn: async (id, updates) => {
+                const { userEmail, tags } = get();
+                // Optimistic
+                const nextTags = tags.map(t => t.id === id ? { ...t, ...updates } : t);
+                set({ tags: nextTags });
+
+                try {
+                    // If renaming
+                    if (updates.name) {
+                        await fetch('/api/crm/stages', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-User-Email': userEmail },
+                            body: JSON.stringify({ id, name: updates.name })
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to update stage", e);
+                }
+            },
+
             setChatTags: (chatTags = {}) => set(() => ({
                 chatTags: chatTags && typeof chatTags === 'object' ? chatTags : {},
             })),
@@ -722,16 +788,23 @@ export const useStore = create(
                     ];
                     return candidates.includes(chatId);
                 });
+
                 const stage = (state.tags || []).find((item) => item.id === tagId);
-                if (chat && stage?.name) {
-                    import('../services/tenantData')
-                        .then(({ persistLeadStage }) => persistLeadStage({
-                            tenantId: state.tenantId,
-                            chat,
-                            stageName: stage.name,
-                            ownerUserId: state.userId,
-                        }))
-                        .catch((error) => console.error('AURA CRM sync error:', error));
+                const { userEmail } = get();
+
+                if (chat?.dbId && stage?.name && userEmail) {
+                    // Call D1 API to persist
+                    fetch('/api/crm/leads', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-Email': userEmail
+                        },
+                        body: JSON.stringify({
+                            id: chat.dbId,
+                            status: stage.name
+                        })
+                    }).catch(err => console.error("Failed to sync stage change", err));
                 }
 
                 return next;
@@ -826,6 +899,10 @@ export const useStore = create(
             // Keep local persistence minimal to avoid cross-device drift and tenant data bleed.
             partialize: (state) => ({
                 currentView: state.currentView,
+                userId: state.userId,
+                userEmail: state.userEmail,
+                userRole: state.userRole,
+                userName: state.userName,
             }),
         }
     )

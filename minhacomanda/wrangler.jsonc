@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "minhacomanda-pro",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-02-19",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "minhacomanda.pro/*",
+      "zone_name": "minhacomanda.pro"
+    },
+    {
+      "pattern": "www.minhacomanda.pro/*",
+      "zone_name": "minhacomanda.pro"
+    }
+  ],
+  "vars": {
+    "APP_BASE_URL": "https://minhacomanda.pro"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
