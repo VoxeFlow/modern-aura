@@ -710,21 +710,31 @@ class WhatsAppService {
         if (!targetInstance || !cleanJid) return [];
         const limit = Math.max(20, Math.min(300, Number(options?.limit || 120)));
 
+        const executeFindMessages = async (targetJid, keyWhere, targetLimit) => {
+            const data = await this.request(`/chat/findMessages/${targetInstance}`, 'POST', {
+                where: {
+                    key: keyWhere,
+                },
+                offset: targetLimit,
+                page: 1,
+            });
+            const list = data?.messages?.records || data?.records || data?.messages || [];
+            return Array.isArray(list) ? list : [];
+        };
+
         const tryFetch = async (targetJid, altJid = null) => {
             if (!targetJid) return [];
             try {
                 const keyWhere = { remoteJid: targetJid };
-                if (altJid) keyWhere.remoteJidAlt = altJid;
+                const hasAltFilter = Boolean(altJid && String(altJid).trim());
+                if (hasAltFilter) keyWhere.remoteJidAlt = String(altJid).trim();
 
-                const data = await this.request(`/chat/findMessages/${targetInstance}`, 'POST', {
-                    where: {
-                        key: keyWhere,
-                    },
-                    offset: limit,
-                    page: 1,
-                });
-                const list = data?.messages?.records || data?.records || data?.messages || [];
-                return Array.isArray(list) ? list : [];
+                const list = await executeFindMessages(targetJid, keyWhere, limit);
+                if (list.length > 0 || !hasAltFilter) return list;
+
+                // Some Evolution payloads do not persist remoteJidAlt on every message.
+                // Fallback to remoteJid-only to avoid empty thread for active contacts.
+                return await executeFindMessages(targetJid, { remoteJid: targetJid }, limit);
             } catch (e) {
                 console.error(`Error fetching messages for ${targetJid}:`, e);
                 return [];
