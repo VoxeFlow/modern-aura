@@ -266,11 +266,28 @@ class WhatsAppService {
 
         try {
             const data = await this.request(`/instance/connectionState/${targetInstance}`);
+            const rawState =
+                data?.instance?.state ||
+                data?.state ||
+                data?.status ||
+                data?.connectionState ||
+                '';
+            const normalized = String(rawState || '').trim().toLowerCase();
+            if (normalized) {
+                if (['open', 'connected', 'online'].includes(normalized)) return 'open';
+                if (['connecting', 'qrcode', 'qr', 'pairing'].includes(normalized)) return 'connecting';
+                if (['close', 'closed', 'disconnected', 'offline'].includes(normalized)) return 'disconnected';
+                return normalized;
+            }
 
-            if (data?.instance?.state) return data.instance.state;
+            // Fallback probe: some Evolution versions/proxies fail on connectionState,
+            // but chat endpoint still responds when the instance is active.
+            const probe = await this.request(`/chat/findChats/${targetInstance}`, 'POST', {});
+            if (!probe?.error) {
+                const probeList = Array.isArray(probe) ? probe : (probe?.records || probe?.chats || []);
+                if (Array.isArray(probeList)) return 'open';
+            }
 
-            // If 404 (instance not found), returns null from request()
-            // We should try to create it if it doesn't exist
             return 'disconnected';
         } catch {
             return 'disconnected';
