@@ -54,6 +54,8 @@ const App = () => {
     setTags,
     setChatTags,
     setKnowledgeBase,
+    apiUrl,
+    apiKey,
     tenantId,
     tenantName,
     briefing,
@@ -619,17 +621,46 @@ const App = () => {
       }
     };
     safeCheck();
-    const itv = setInterval(() => safeCheck(), 45000);
+    const itv = setInterval(() => safeCheck(), 15000);
     const onManualRefresh = () => safeCheck({ force: true });
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        safeCheck({ force: true });
+      }
+    };
     window.addEventListener('aura:refresh-inbox', onManualRefresh);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       clearInterval(itv);
       window.removeEventListener('aura:refresh-inbox', onManualRefresh);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [setIsConnected, setChats, isAuthenticated, tenantBootstrapReady, setWhatsAppChannelStatus, tenantId, setChatTags, setWhatsAppChannels]);
 
+  // Realtime socket: receives incoming messages and triggers debounced inbox refreshes.
+  useEffect(() => {
+    if (!isAuthenticated || !tenantBootstrapReady) return;
+    try {
+      WhatsAppService.connectSocket();
+    } catch (error) {
+      console.error('AURA socket init error:', error);
+    }
+    return () => {
+      try {
+        WhatsAppService.disconnectSocket();
+      } catch (error) {
+        console.error('AURA socket cleanup error:', error);
+      }
+    };
+  }, [isAuthenticated, tenantBootstrapReady, apiUrl, apiKey]);
+
   // AUTH: Handle logout
   const handleLogout = useCallback(async ({ skipRelease = false } = {}) => {
+    try {
+      WhatsAppService.disconnectSocket();
+    } catch (error) {
+      console.error('AURA socket logout cleanup error:', error);
+    }
     if (isSupabaseEnabled && !skipRelease) {
       try {
         await releaseUserSession();

@@ -6,9 +6,13 @@ import { isSupabaseEnabled, supabase } from './supabase';
 class WhatsAppService {
     constructor() {
         this.socket = null;
+        this.socketBaseUrl = '';
         this.serverInfoCache = null;
         this.contactsCache = new Map();
-        this.contactsCacheTtlMs = 60 * 1000;
+        this.contactsCacheTtlMs = 5 * 60 * 1000;
+        this.numberVerificationCache = new Map();
+        this.numberVerificationCacheTtlMs = 5 * 60 * 1000;
+        this.inboxRefreshTimer = null;
         this.debug = false;
     }
 
@@ -160,14 +164,48 @@ class WhatsAppService {
         return null;
     }
 
+    scheduleInboxRefresh() {
+        if (typeof window === 'undefined') return;
+        if (this.inboxRefreshTimer) return;
+        this.inboxRefreshTimer = window.setTimeout(() => {
+            this.inboxRefreshTimer = null;
+            window.dispatchEvent(new CustomEvent('aura:refresh-inbox'));
+        }, 1200);
+    }
+
+    disconnectSocket() {
+        if (this.socket) {
+            try {
+                this.socket.disconnect();
+            } catch (error) {
+                console.error('AURA socket disconnect error:', error);
+            }
+        }
+        this.socket = null;
+        this.socketBaseUrl = '';
+    }
+
     connectSocket() {
-        const { apiUrl, apiKey, instanceName } = useStore.getState();
-        if (!apiUrl || !instanceName || this.socket) return;
+        const { apiUrl, apiKey } = useStore.getState();
+        if (!apiUrl || !apiKey) return;
 
-        this.debugLog(`🔌 Initializing Socket for ${instanceName}...`);
-
-        // Evolution API usually exposes socket at root
         const baseUrl = String(apiUrl).trim().endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+        if (!baseUrl) return;
+
+        if (this.socket && this.socketBaseUrl === baseUrl) {
+            if (this.socket.connected) return;
+            try {
+                this.socket.connect();
+                return;
+            } catch {
+                this.disconnectSocket();
+            }
+        }
+        if (this.socket && this.socketBaseUrl !== baseUrl) {
+            this.disconnectSocket();
+        }
+
+        this.debugLog(`🔌 Initializing Socket for ${baseUrl}...`);
 
         this.socket = io(baseUrl, {
             transports: ['websocket', 'polling'],
@@ -175,6 +213,7 @@ class WhatsAppService {
                 apikey: apiKey
             }
         });
+        this.socketBaseUrl = baseUrl;
 
         this.socket.on('connect', () => {
             this.debugLog('✅ Socket Connected!');
@@ -206,7 +245,17 @@ class WhatsAppService {
 
                 // Real-time sync for active thread to reduce polling gaps.
                 useStore.getState().appendRealtimeMessage(msg);
+                // Trigger debounced inbox refresh so new chats/previews appear without waiting for long poll.
+                this.scheduleInboxRefresh();
             }
+        });
+
+        this.socket.on('disconnect', () => {
+            this.debugWarn('AURA socket disconnected');
+        });
+
+        this.socket.on('connect_error', (error) => {
+            this.debugWarn('AURA socket connect_error:', error?.message || error);
         });
     }
 
@@ -669,29 +718,99 @@ class WhatsAppService {
         if (!targetInstance || !Array.isArray(numbersOrJids) || numbersOrJids.length === 0) return [];
 
         try {
-            const response = await this.request(`/chat/whatsappNumbers/${targetInstance}`, 'POST', {
-                numbers: numbersOrJids,
-            });
+            const now = Date.now();
+            const instanceKey = String(targetInstance || '').toLowerCase();
+            const normalizeInputKey = (value) => {
+                const raw = String(value || '').trim();
+                if (!raw) return null;
+                const normalizedJid = this.standardizeJid(raw);
+                if (normalizedJid) return `${instanceKey}:${normalizedJid}`;
+                const normalizedPhone = this.normalizePhoneNumber(raw);
+                if (normalizedPhone) return `${instanceKey}:${normalizedPhone}`;
+                return `${instanceKey}:${raw.toLowerCase()}`;
+            };
 
-            const rawList =
-                (Array.isArray(response) && response) ||
-                (Array.isArray(response?.numbers) && response.numbers) ||
-                (Array.isArray(response?.data) && response.data) ||
-                (Array.isArray(response?.response) && response.response) ||
-                (Array.isArray(response?.response?.message) && response.response.message) ||
-                [];
+            const requestedKeys = [];
+            const pendingInputs = [];
+            const cachedResultsByKey = new Map();
 
-            return rawList.map((item) => {
-                const jid = item?.jid || item?.number || null;
-                return {
-                    exists: item?.exists !== false,
-                    jid,
-                    number: this.normalizePhoneNumber(item?.number || this.getNum(jid)),
-                    name: item?.name || null,
-                    lid: item?.lid || null,
-                    raw: item,
-                };
-            });
+            for (const input of numbersOrJids) {
+                const key = normalizeInputKey(input);
+                if (!key) continue;
+                requestedKeys.push(key);
+                const cached = this.numberVerificationCache.get(key);
+                if (cached && (now - cached.timestamp) < this.numberVerificationCacheTtlMs) {
+                    cachedResultsByKey.set(key, cached.value);
+                } else {
+                    pendingInputs.push(input);
+                }
+            }
+
+            let freshItems = [];
+            if (pendingInputs.length > 0) {
+                const response = await this.request(`/chat/whatsappNumbers/${targetInstance}`, 'POST', {
+                    numbers: pendingInputs,
+                });
+
+                const rawList =
+                    (Array.isArray(response) && response) ||
+                    (Array.isArray(response?.numbers) && response.numbers) ||
+                    (Array.isArray(response?.data) && response.data) ||
+                    (Array.isArray(response?.response) && response.response) ||
+                    (Array.isArray(response?.response?.message) && response.response.message) ||
+                    [];
+
+                freshItems = rawList.map((item) => {
+                    const jid = item?.jid || item?.number || null;
+                    return {
+                        exists: item?.exists !== false,
+                        jid,
+                        number: this.normalizePhoneNumber(item?.number || this.getNum(jid)),
+                        name: item?.name || null,
+                        lid: item?.lid || null,
+                        raw: item,
+                    };
+                });
+
+                for (const item of freshItems) {
+                    const itemKeys = [
+                        normalizeInputKey(item?.jid),
+                        normalizeInputKey(item?.number),
+                    ].filter(Boolean);
+                    itemKeys.forEach((key) => {
+                        this.numberVerificationCache.set(key, { timestamp: now, value: item });
+                        cachedResultsByKey.set(key, item);
+                    });
+                }
+
+                // Cache "not found" placeholders for inputs not returned by API to avoid hot-loop retries.
+                for (const input of pendingInputs) {
+                    const key = normalizeInputKey(input);
+                    if (!key || cachedResultsByKey.has(key)) continue;
+                    const miss = {
+                        exists: false,
+                        jid: this.standardizeJid(input) || null,
+                        number: this.normalizePhoneNumber(input),
+                        name: null,
+                        lid: null,
+                        raw: null,
+                    };
+                    this.numberVerificationCache.set(key, { timestamp: now, value: miss });
+                    cachedResultsByKey.set(key, miss);
+                }
+            }
+
+            const ordered = [];
+            const seen = new Set();
+            for (const key of requestedKeys) {
+                const item = cachedResultsByKey.get(key);
+                if (!item) continue;
+                const fp = `${item.jid || ''}|${item.number || ''}|${item.exists ? '1' : '0'}`;
+                if (seen.has(fp)) continue;
+                seen.add(fp);
+                ordered.push(item);
+            }
+            return ordered;
         } catch (error) {
             console.error('AURA verifyWhatsAppNumbersBulk error:', error);
             return [];
