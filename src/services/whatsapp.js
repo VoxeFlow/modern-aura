@@ -123,7 +123,18 @@ class WhatsAppService {
                 const errorBody = isJson
                     ? await response.json().catch(() => ({}))
                     : { message: await response.text().catch(() => '') };
-                return { error: true, status: response.status, ...errorBody };
+                const normalizedMessage =
+                    errorBody?.response?.message ||
+                    errorBody?.message ||
+                    errorBody?.error ||
+                    errorBody?.detail ||
+                    `HTTP ${response.status}`;
+                return {
+                    error: true,
+                    status: response.status,
+                    message: normalizedMessage,
+                    ...errorBody,
+                };
             }
 
             if (isJson) return await response.json();
@@ -396,6 +407,18 @@ class WhatsAppService {
                 }
                 await new Promise((resolve) => setTimeout(resolve, 500));
                 let retry = await this.tryConnectWithFallbackEndpoints(targetInstance);
+                return retry;
+            }
+
+            // Defensive recovery: some Evolution stacks return generic 500 instead of "not found".
+            if (response?.error && Number(response?.status) >= 500) {
+                this.debugWarn(`AURA: connect returned ${response?.status}. Trying create+retry for ${targetInstance}...`);
+                const created = await this.createInstance(targetInstance);
+                if (created?.error && !String(this.extractApiErrorMessage(created)).includes('already')) {
+                    return created;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                const retry = await this.tryConnectWithFallbackEndpoints(targetInstance);
                 return retry;
             }
 

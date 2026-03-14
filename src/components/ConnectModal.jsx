@@ -77,6 +77,20 @@ const ConnectModal = ({ isOpen, onClose }) => {
         return `data:image/png;base64,${clean}`;
     };
 
+    const getApiErrorMessage = (payload, fallback = 'Falha ao gerar QR.') => {
+        const responseMessage = payload?.response?.message;
+        if (Array.isArray(responseMessage) && responseMessage.length > 0) {
+            return responseMessage.join(' | ');
+        }
+        return (
+            responseMessage ||
+            payload?.message ||
+            payload?.error ||
+            payload?.detail ||
+            (payload?.status ? `${fallback} (status ${payload.status})` : fallback)
+        );
+    };
+
     const checkStatus = useCallback(async () => {
         const instance = String(activeChannel?.instanceName || '').trim();
         if (!instance) {
@@ -193,7 +207,7 @@ const ConnectModal = ({ isOpen, onClose }) => {
             if (nextQr) {
                 setQrCode(nextQr);
             } else if (data?.error) {
-                const msg = data?.response?.message || data?.message || `Falha ao gerar QR (status ${data?.status || 'desconhecido'}).`;
+                const msg = getApiErrorMessage(data, 'Falha ao gerar QR');
                 alert(msg);
             } else if (liveState !== 'open') {
                 alert('A Evolution não retornou QR. Clique em Atualizar e tente novamente.');
