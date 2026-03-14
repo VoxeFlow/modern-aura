@@ -339,6 +339,45 @@ class WhatsAppService {
         );
     }
 
+    hasQrInPayload(payload) {
+        if (!payload || payload.error) return false;
+        const qr =
+            payload?.qrcode?.base64 ||
+            payload?.base64 ||
+            payload?.qrcode ||
+            payload?.qr ||
+            payload?.data?.qrcode?.base64 ||
+            payload?.data?.base64 ||
+            payload?.data?.qrcode ||
+            payload?.data?.qr;
+        return Boolean(qr);
+    }
+
+    async tryConnectWithFallbackEndpoints(targetInstance) {
+        const attempts = [
+            { path: `/instance/connect/${targetInstance}`, method: 'GET' },
+            { path: `/instance/connect/${targetInstance}`, method: 'POST', body: {} },
+            { path: '/instance/connect', method: 'POST', body: { instanceName: targetInstance } },
+            { path: '/instance/connect', method: 'POST', body: { name: targetInstance } },
+            { path: `/instance/qrcode/${targetInstance}`, method: 'GET' },
+            { path: `/instance/qrCode/${targetInstance}`, method: 'GET' },
+            { path: `/instance/qr/${targetInstance}`, method: 'GET' },
+        ];
+
+        let last = null;
+        for (const attempt of attempts) {
+            const result = await this.request(attempt.path, attempt.method, attempt.body || null);
+            last = result;
+            if (result && !result.error) return result;
+
+            const message = this.extractApiErrorMessage(result);
+            if (message.includes('unauthorized') || message.includes('forbidden') || message.includes('apikey')) {
+                return result;
+            }
+        }
+        return last;
+    }
+
     async connectInstance(instanceOverride = null) {
         const { instanceName } = useStore.getState();
         const targetInstance = instanceOverride || instanceName;
@@ -347,7 +386,7 @@ class WhatsAppService {
         // Evolution endpoint in this environment is GET /instance/connect/:name
         // If 404, instance does not exist yet and we create it first.
         try {
-            let response = await this.request(`/instance/connect/${targetInstance}`, 'GET');
+            let response = await this.tryConnectWithFallbackEndpoints(targetInstance);
 
             if (this.isMissingInstanceResponse(response)) {
                 this.debugWarn(`AURA: Instance ${targetInstance} not found. Creating...`);
@@ -356,10 +395,15 @@ class WhatsAppService {
                     return created;
                 }
                 await new Promise((resolve) => setTimeout(resolve, 500));
-                let retry = await this.request(`/instance/connect/${targetInstance}`, 'GET');
+                let retry = await this.tryConnectWithFallbackEndpoints(targetInstance);
                 return retry;
             }
 
+            // Some Evolution builds return "open" state instead of QR in connect call.
+            // In this case we still return success so UI can refresh status.
+            if (!response?.error && this.hasQrInPayload(response)) {
+                return response;
+            }
             return response;
         } catch (e) {
             console.error("Connect error:", e);
